@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  zabbixscreen-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zabbixscreen-dev
+    ports:
+      - "8088:80"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backend:/app
+    environment:
+      - TZ=Asia/Shanghai
+      - APP_SECRET_KEY=dev-secret-key
+      - DEBUG=true
+      - ZABBIX_REQUEST_TIMEOUT=30
+      - AGGREGATION_TOTAL_TIMEOUT=30
+    restart: "no"

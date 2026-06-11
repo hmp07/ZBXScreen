@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  zabbixscreen:
+    image: zabbixscreen:latest
+    container_name: zabbixscreen
+    ports:
+      - "8088:80"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+      - APP_SECRET_KEY=change-this-in-production
+      - DEFAULT_REFRESH_INTERVAL=30
+      - ALERT_CHECK_INTERVAL=60
+      - DATA_RETENTION_DAYS=30
+      - ZABBIX_REQUEST_TIMEOUT=25
+      - AGGREGATION_TOTAL_TIMEOUT=28
+      - WEBHOOK_REQUEST_TIMEOUT=10
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

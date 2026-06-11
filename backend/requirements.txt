@@ -1,0 +1,29 @@
+# FastAPI & Server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+aiosqlite==0.20.0
+alembic==1.14.0
+
+# Auth & Security
+PyJWT==2.10.1
+bcrypt==4.2.1
+pycryptodome==3.21.0
+
+# Task Scheduling
+apscheduler==3.10.4
+
+# HTTP Client
+httpx==0.28.1
+
+# Data Validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1
+pytest-cov==6.0.0

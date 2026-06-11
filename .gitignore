@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+venv/
+*.egg
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+!.env.example
+
+# Data
+data/*.db
+data/*.db-journal
+data/*.db-wal
+logs/
+
+# Deployment
+deploy*.tar.gz
+
+# Claude
+.claude/
+
+# Miscellaneous
+monitor.html
+
+# Docker
+.docker/
+
+# Test
+.coverage
+htmlcov/
+.nyc_output/
+coverage/
