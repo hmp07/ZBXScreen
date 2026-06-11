@@ -1,0 +1,75 @@
+# ── Git ──
+.git/
+.gitignore
+.gitattributes
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+*.egg
+backend/dist/
+backend/build/
+
+# ── Node ──
+node_modules/
+frontend/dist/
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Runtime data ──
+data/
+logs/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── Environment ──
+.env
+
+# ── Deployment artifacts ──
+deploy*.tar.gz
+
+# ── Documentation / Screenshots ──
+*.md
+!README.md
+*.png
+*.jpg
+*.svg
+!frontend/public/*.svg
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Claude ──
+.claude/
+CLAUDE.md
+
+# ── Docker ──
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.docker/
+
+# ── Test / Coverage ──
+.coverage
+htmlcov/
+.nyc_output/
+coverage/
+backend/tests/
+backend/.pytest_cache/
+
+# ── Demo ──
+demo/
+
+# ── Monitor ──
+monitor.html

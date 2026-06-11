@@ -1,26 +1,52 @@
 version: '3.8'
 
+# =====================================================================
+# ZBXScreen 生产环境 Docker Compose
+# =====================================================================
+# 前置条件:
+#   1. 已构建 zabbixscreen:latest 镜像（参见 DEPLOY.md）
+#   2. 创建 .env 文件并设置 APP_SECRET_KEY
+#
+# 启动: docker compose up -d
+# 停止: docker compose down
+# 日志: docker compose logs -f
+# =====================================================================
+
 services:
   zabbixscreen:
     image: zabbixscreen:latest
     container_name: zabbixscreen
     ports:
-      - "8088:80"
+      - "${ZBX_PORT:-8088}:80"
     volumes:
+      # 持久化数据：数据库 + 日志（挂载到宿主机目录）
       - ./data:/app/data
       - ./logs:/app/logs
     environment:
-      - TZ=Asia/Shanghai
-      - APP_SECRET_KEY=change-this-in-production
-      - DEFAULT_REFRESH_INTERVAL=30
-      - ALERT_CHECK_INTERVAL=60
-      - DATA_RETENTION_DAYS=30
-      - ZABBIX_REQUEST_TIMEOUT=25
-      - AGGREGATION_TOTAL_TIMEOUT=28
-      - WEBHOOK_REQUEST_TIMEOUT=10
+      # === 必填 ===
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-change-this-in-production}
+
+      # === 可选 (均含默认值) ===
+      - DEFAULT_REFRESH_INTERVAL=${DEFAULT_REFRESH_INTERVAL:-30}
+      - ALERT_CHECK_INTERVAL=${ALERT_CHECK_INTERVAL:-60}
+      - DATA_RETENTION_DAYS=${DATA_RETENTION_DAYS:-30}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-Admin@123}
+      - TZ=${TZ:-Asia/Shanghai}
+      - DEBUG=${DEBUG:-false}
+
+      # === Zabbix 连接 ===
+      - ZABBIX_REQUEST_TIMEOUT=${ZABBIX_REQUEST_TIMEOUT:-25}
+      - AGGREGATION_TOTAL_TIMEOUT=${AGGREGATION_TOTAL_TIMEOUT:-28}
+      - WEBHOOK_REQUEST_TIMEOUT=${WEBHOOK_REQUEST_TIMEOUT:-10}
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
