@@ -78,14 +78,18 @@ docker buildx build \
   --tag your-registry/zabbixscreen:latest \
   --push .
 
-# 3. 仅构建到本地（不推送，仅当前平台）
+# 3. 本地单平台构建测试（仅当前架构）
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --platform linux/amd64 \
   --tag zabbixscreen:latest \
   --load .
+
+# 或者分别构建多平台：
+#   docker buildx build --platform linux/amd64 -t zabbixscreen:amd64 --load .
+#   docker buildx build --platform linux/arm64 -t zabbixscreen:arm64 --load .
 ```
 
-> **注意：** `--load` 仅支持单平台。如需本地测试多平台，建议按上述方式分别构建。
+> **注意：** `--load` 不支持多平台同时导出（manifest list）。多平台批量构建必须使用 `--push` 推送到镜像仓库。
 
 #### ARM64 平台单独构建（鲲鹏/飞腾服务器）
 
