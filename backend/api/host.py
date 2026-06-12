@@ -229,9 +229,9 @@ async def get_host_detail(
             elif "vfs.fs" in key:
                 metrics["disk_usage"] = round(val, 1)
             elif "net.if.in" in key and "lo" not in key:
-                metrics["network_in"] = val
+                metrics["network_in"] = round(val / 1_000_000, 2)  # bps → Mbps
             elif "net.if.out" in key and "lo" not in key:
-                metrics["network_out"] = val
+                metrics["network_out"] = round(val / 1_000_000, 2)  # bps → Mbps
 
         return success({"host": host, "metrics": metrics})
     except ZabbixAPIError as e:

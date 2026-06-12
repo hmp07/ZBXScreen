@@ -314,9 +314,10 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
         elif "vfs.fs.size" in key and "pfree" in key:
             host_metrics[hostid]["disk"] = round(100.0 - val, 1)
         elif "net.if.in" in key and "lo" not in key and "error" not in key and "discard" not in key:
-            host_metrics[hostid]["network_in"] = round(val * 8 / 1_000_000, 2)
+            # Zabbix net.if.in items use units=bps, value is already in bits/sec
+            host_metrics[hostid]["network_in"] = round(val / 1_000_000, 2)
         elif "net.if.out" in key and "lo" not in key and "error" not in key and "discard" not in key:
-            host_metrics[hostid]["network_out"] = round(val * 8 / 1_000_000, 2)
+            host_metrics[hostid]["network_out"] = round(val / 1_000_000, 2)
 
         # --- 网络接口错误/丢弃计数 ---
         if hostid not in interface_errors:
@@ -474,22 +475,11 @@ async def _build_network_devices(
     # ── 3. CRC 错误 TOP 10（仅网络设备）──
     crc_errors_top10 = _build_crc_errors_top10(interface_errors, hostid_to_name)
 
-    # ── 4. 端口流量 TOP 10（仅网络设备）──
-    port_traffic_top10 = _build_port_traffic_top10(
-        top_network_in, top_network_out, interface_errors, network_hostnames_all
-    )
-
-    # 将 port traffic 中的 host 字段映射为显示名称
-    # hostid_to_host: hostid → "192.168.1.81", hostid_to_name: hostid → "核心交换机"
-    host_to_display = {hostid_to_host[hid]: hostid_to_name[hid] for hid in hostid_to_host if hid in hostid_to_name}
-    for item in port_traffic_top10:
-        item["device"] = host_to_display.get(item["device"], item["device"])
+    # ── 4. 端口流量 TOP 10（仅网络设备，从 host_metrics 中筛选排序）──
+    port_traffic_top10 = _build_network_port_traffic(host_metrics, network_hostnames_all)
 
     # ── 5. 端口利用率 TOP 10 ──
-    port_util_top10 = _build_port_util_top10(port_traffic_top10, host_metrics)
-    # 同样映射 util 中的名称
-    for item in port_util_top10:
-        item["device"] = host_to_display.get(item["device"], item["device"])
+    port_util_top10 = _build_port_util_top10(port_traffic_top10)
 
     # ── 6. 网络设备汇总 ──
     total_traffic = sum(x.get("total_mbps", 0) for x in port_traffic_top10)
@@ -652,43 +642,33 @@ def _build_crc_errors_top10(interface_errors: dict, hostid_to_name: dict) -> lis
     return top
 
 
-def _build_port_traffic_top10(
-    top_network_in: list, top_network_out: list,
-    interface_errors: dict, network_hostnames: set
-) -> list[dict]:
-    """从 TOP N 数据构建端口流量 TOP 10（仅网络设备）"""
-    out_map = {x["host"]: x["value"] for x in top_network_out}
-
-    result = []
-    for item in top_network_in:
-        host = item["host"]
-        # 跳过非网络设备
-        if host not in network_hostnames:
+def _build_network_port_traffic(host_metrics: dict, network_hostnames: set) -> list[dict]:
+    """从 host_metrics 中筛选网络设备，按流量排序取 TOP 10"""
+    # 只取网络设备，按 network_in 降序排列
+    net_hosts = []
+    for hostname, metrics in host_metrics.items():
+        if hostname not in network_hostnames:
             continue
-        in_val = item["value"]
-        out_val = out_map.get(host, 0.0)
-
-        port = "auto"
-        result.append({
-            "device": host,
-            "port": port,
-            "in_mbps": round(in_val, 2),
-            "out_mbps": round(out_val, 2),
-            "total_mbps": round(in_val + out_val, 2),
+        net_in = metrics.get("network_in", 0)
+        net_out = metrics.get("network_out", 0)
+        net_hosts.append({
+            "device": hostname,
+            "port": "auto",
+            "in_mbps": net_in,
+            "out_mbps": net_out,
+            "total_mbps": round(net_in + net_out, 2),
         })
 
-        if len(result) >= 10:
-            break
-
-    return result
+    net_hosts.sort(key=lambda x: x["total_mbps"], reverse=True)
+    return net_hosts[:10]
 
 
-def _build_port_util_top10(port_traffic: list, host_metrics: dict) -> list[dict]:
-    """从端口流量数据构建端口利用率 TOP 10（标准带宽 1000Mbps）"""
+def _build_port_util_top10(port_traffic: list) -> list[dict]:
+    """从端口流量数据构建端口利用率 TOP 10（基准带宽 1000Mbps）"""
     result = []
     for item in port_traffic[:10]:
-        # 利用率 = 总流量 / 1000 Mbps * 100（基于千兆端口假设）
-        util = min(100, round(item["total_mbps"] / 10 * 100, 1))
+        # 利用率 = 总流量(Mbps) / 1000(Mbps) * 100
+        util = min(100, round(item["total_mbps"] / 1000 * 100, 1))
         result.append({
             "device": item["device"],
             "port": item["port"],
