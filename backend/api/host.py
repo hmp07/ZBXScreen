@@ -257,10 +257,20 @@ async def get_host_history(
         raise HTTPException(status_code=404, detail={"code": 1003, "message": "数据源不存在"})
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    start = datetime.fromisoformat(start_time) if start_time else now - timedelta(hours=1)
-    end = datetime.fromisoformat(end_time) if end_time else now
-    start_ts = int(start.timestamp())
-    end_ts = int(end.timestamp())
+    # 将时间对齐到 30s 边界，确保同一时间窗口内请求命中缓存
+    now_aligned = now.replace(second=(now.second // 30) * 30, microsecond=0)
+    if start_time:
+        start = datetime.fromisoformat(start_time)
+        start_aligned = start.replace(second=(start.second // 30) * 30, microsecond=0)
+    else:
+        start_aligned = now_aligned - timedelta(hours=1)
+    if end_time:
+        end = datetime.fromisoformat(end_time)
+        end_aligned = end.replace(second=(end.second // 30) * 30, microsecond=0)
+    else:
+        end_aligned = now_aligned
+    start_ts = int(start_aligned.timestamp())
+    end_ts = int(end_aligned.timestamp())
 
     try:
         # 缓存优先（内部自动回退到实时 Zabbix API）
