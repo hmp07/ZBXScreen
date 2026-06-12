@@ -37,13 +37,15 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrap" v-if="total > pageSize">
+    <div class="pagination-wrap" v-if="total > 0">
       <el-pagination
         v-model:current-page="page"
-        :page-size="pageSize"
+        v-model:page-size="pageSize"
+        :page-sizes="[30, 40, 50, 60, 70, 80, 90, 100]"
         :total="total"
-        layout="prev, pager, next"
+        layout="total, sizes, prev, pager, next, jumper"
         @current-change="fetchHosts"
+        @size-change="fetchHosts"
       />
     </div>
   </div>
@@ -59,7 +61,7 @@ const searchText = ref("");
 const hosts = ref<any[]>([]);
 const loading = ref(false);
 const page = ref(1);
-const pageSize = ref(20);
+const pageSize = ref(30);
 const total = ref(0);
 let searchTimeout: ReturnType<typeof setTimeout>;
 

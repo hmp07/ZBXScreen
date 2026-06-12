@@ -56,6 +56,7 @@ async def aggregate_all_datasources():
         host_metrics_by_id = {}  # "{datasource_id}:{hostid}" → {hostname, host, metrics...}
         all_ping_status = {}   # hostid → bool (agent.ping 状态)
         all_interface_errors = {}  # hostid → {iface: {in_errors, out_errors, ...}}
+        all_interface_traffic = {}  # hostid → {iface: {in_mbps, out_mbps}}
         all_system_info = {}       # hostid → {descr, name, model, serial}
 
         for i, result in enumerate(results):
@@ -125,6 +126,20 @@ async def aggregate_all_datasources():
                         if v and not all_system_info[hostid].get(k):
                             all_system_info[hostid][k] = v
 
+            # 合并接口流量（per-interface traffic）
+            iface_traffic = result.get("interface_traffic", {})
+            for hostid, ifaces in iface_traffic.items():
+                if hostid not in all_interface_traffic:
+                    all_interface_traffic[hostid] = {}
+                for iface, traffic in ifaces.items():
+                    if iface not in all_interface_traffic[hostid]:
+                        all_interface_traffic[hostid][iface] = traffic
+                    else:
+                        # 同接口取最大值（不同数据源可能有不同精度）
+                        existing = all_interface_traffic[hostid][iface]
+                        existing["in_mbps"] = max(existing.get("in_mbps", 0), traffic.get("in_mbps", 0))
+                        existing["out_mbps"] = max(existing.get("out_mbps", 0), traffic.get("out_mbps", 0))
+
         # 跨数据源去重（按 hostname）
         seen = set()
         deduped_hosts = []
@@ -133,6 +148,13 @@ async def aggregate_all_datasources():
             if key not in seen:
                 seen.add(key)
                 deduped_hosts.append(h)
+
+        # ── 补全主机组信息（Zabbix 7.x selectGroups 受限，改用 hostgroup.get）──
+        hostid_to_groups = await _fetch_host_groups_map(datasources)
+        for h in deduped_hosts:
+            hid = h.get("hostid", "")
+            if hid in hostid_to_groups:
+                h["groups"] = hostid_to_groups[hid]
 
         # 通过 agent.ping 判断在线/离线状态
         offline_hostnames = set()
@@ -165,7 +187,8 @@ async def aggregate_all_datasources():
         # ── 构建网络设备数据 ──
         network_devices = await _build_network_devices(
             datasources, all_interface_errors, all_system_info,
-            deduped_hosts, all_ping_status, top_network_in, top_network_out, all_host_metrics
+            deduped_hosts, all_ping_status, top_network_in, top_network_out,
+            all_host_metrics, all_interface_traffic
         )
 
         # 写入缓存表
@@ -215,9 +238,9 @@ async def fetch_datasource_data(ds: Datasource) -> dict:
         # 获取活跃触发器数量
         triggers = await client.get_triggers(active_only=True)
 
-        # 一次性获取所有 items，同时提取 metrics + ping 状态 + 网络接口错误 + 系统信息
+        # 一次性获取所有 items，同时提取 metrics + ping 状态 + 网络接口错误 + 系统信息 + 接口流量
         hostids = [h.get("hostid") for h in hosts if h.get("hostid")]
-        item_metrics, ping_status, interface_errors, system_info = await _fetch_item_data(client, hostids)
+        item_metrics, ping_status, interface_errors, system_info, interface_traffic = await _fetch_item_data(client, hostids)
 
         return {
             "hosts": hosts,
@@ -226,41 +249,45 @@ async def fetch_datasource_data(ds: Datasource) -> dict:
             "ping_status": ping_status,
             "interface_errors": interface_errors,
             "system_info": system_info,
+            "interface_traffic": interface_traffic,
         }
     except ZabbixAPIError as e:
         print(f"[AGGREGATOR] Zabbix error for '{ds.name}': {e}")
         return {"hosts": [], "alert_count": 0, "item_metrics": {}, "ping_status": {},
-                "interface_errors": {}, "system_info": {}}
+                "interface_errors": {}, "system_info": {}, "interface_traffic": {}}
     except Exception as e:
         print(f"[AGGREGATOR] Unexpected error for '{ds.name}': {e}")
         return {"hosts": [], "alert_count": 0, "item_metrics": {}, "ping_status": {},
-                "interface_errors": {}, "system_info": {}}
+                "interface_errors": {}, "system_info": {}, "interface_traffic": {}}
 
 
-async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[dict, dict, dict, dict]:
+async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[dict, dict, dict, dict, dict]:
     """
-    一次性拉取所有 items，同时提取指标数据、agent.ping 状态、网络接口错误和系统信息。
+    一次性拉取所有 items，同时提取指标数据、agent.ping 状态、网络接口错误、系统信息和接口流量。
     避免重复 API 调用。
-    返回: (host_metrics, ping_status, interface_errors, system_info)
+    返回: (host_metrics, ping_status, interface_errors, system_info, interface_traffic)
       host_metrics: {hostid: {cpu, memory, disk, network_in, network_out}}
       ping_status:  {hostid: bool}
-      interface_errors: {hostid: [{iface, in_errors, out_errors, in_discards, out_discards}]}
+      interface_errors: {hostid: {iface_name: {in_errors, out_errors, in_discards, out_discards}}}
       system_info: {hostid: {descr, name, model, serial}}
+      interface_traffic: {hostid: {iface_name: {in_mbps, out_mbps}}}
     """
     import re
 
     if not hostids:
-        return {}, {}, {}, {}
+        return {}, {}, {}, {}, {}
 
     try:
         items = await client.get_items(hostids=hostids)
     except ZabbixAPIError:
-        return {}, {}, {}, {}
+        return {}, {}, {}, {}, {}
 
     host_metrics = {}
     ping_status = {}
     # interface_errors: {hostid: {iface_name: {in_errors, out_errors, in_discards, out_discards}}}
     interface_errors = {}
+    # interface_traffic: {hostid: {iface_name: {in_mbps, out_mbps}}}
+    interface_traffic = {}
     system_info = {}
 
     def _parse_iface(item_name: str, key: str) -> str:
@@ -316,8 +343,21 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
         elif "net.if.in" in key and "lo" not in key and "error" not in key and "discard" not in key:
             # Zabbix net.if.in items use units=bps, value is already in bits/sec
             host_metrics[hostid]["network_in"] = round(val / 1_000_000, 2)
+            # 同时记录 per-interface 流量（用于网络大屏端口流量图表）
+            if hostid not in interface_traffic:
+                interface_traffic[hostid] = {}
+            iface = _parse_iface(name, key)
+            if iface not in interface_traffic[hostid]:
+                interface_traffic[hostid][iface] = {}
+            interface_traffic[hostid][iface]["in_mbps"] = round(val / 1_000_000, 2)
         elif "net.if.out" in key and "lo" not in key and "error" not in key and "discard" not in key:
             host_metrics[hostid]["network_out"] = round(val / 1_000_000, 2)
+            if hostid not in interface_traffic:
+                interface_traffic[hostid] = {}
+            iface = _parse_iface(name, key)
+            if iface not in interface_traffic[hostid]:
+                interface_traffic[hostid][iface] = {}
+            interface_traffic[hostid][iface]["out_mbps"] = round(val / 1_000_000, 2)
 
         # --- 网络接口错误/丢弃计数 ---
         if hostid not in interface_errors:
@@ -363,7 +403,7 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
                 system_info[hostid] = {}
             system_info[hostid]["serial"] = str(item_value) if item_value else ""
 
-    return host_metrics, ping_status, interface_errors, system_info
+    return host_metrics, ping_status, interface_errors, system_info, interface_traffic
 
 
 def _build_top_n(host_metrics: dict, metric_key: str, top_n: int = 10,
@@ -385,6 +425,38 @@ def _build_top_n(host_metrics: dict, metric_key: str, top_n: int = 10,
 
     rankings.sort(key=lambda x: x["value"], reverse=True)
     return rankings[:top_n]
+
+
+async def _fetch_host_groups_map(datasources: list) -> dict:
+    """
+    通过 hostgroup.get(selectHosts) 构建 hostid → [{"groupid":..., "name":...}] 映射。
+    Zabbix 7.x 中 host.get 的 selectGroups 可能因权限受限返回空，
+    但 hostgroup.get 配合 selectHosts 可正常获取组成员关系。
+    """
+    from utils.crypto import decrypt_password
+
+    hostid_to_groups = {}
+
+    for ds in datasources:
+        try:
+            password = decrypt_password(ds.password_encrypted)
+            client = ZabbixClient(ds.url, ds.username, password)
+            # 一次性获取所有主机组及其成员主机
+            result = await client._call("hostgroup.get", {
+                "selectHosts": ["hostid"],
+            })
+            for g in result:
+                gid = g.get("groupid", "")
+                gname = g.get("name", "")
+                for h in g.get("hosts", []):
+                    hid = h["hostid"]
+                    if hid not in hostid_to_groups:
+                        hostid_to_groups[hid] = []
+                    hostid_to_groups[hid].append({"groupid": gid, "name": gname})
+        except Exception as e:
+            print(f"[AGGREGATOR] Failed to fetch host groups for ds '{ds.name}': {e}")
+
+    return hostid_to_groups
 
 
 async def _get_network_host_ids(datasources: list) -> set:
@@ -429,7 +501,7 @@ async def _get_network_host_ids(datasources: list) -> set:
 async def _build_network_devices(
     datasources: list, interface_errors: dict, system_info: dict,
     hosts: list, ping_status: dict, top_network_in: list, top_network_out: list,
-    host_metrics: dict
+    host_metrics: dict, interface_traffic: dict = None
 ) -> dict:
     """
     构建网络设备监控数据（仅包含 Zabbix 主机组中的网络设备）：
@@ -475,8 +547,12 @@ async def _build_network_devices(
     # ── 3. CRC 错误 TOP 10（仅网络设备）──
     crc_errors_top10 = _build_crc_errors_top10(interface_errors, hostid_to_name)
 
-    # ── 4. 端口流量 TOP 10（仅网络设备，从 host_metrics 中筛选排序）──
-    port_traffic_top10 = _build_network_port_traffic(host_metrics, network_hostnames_all)
+    # ── 4. 端口流量 TOP 10（per-interface，仅网络设备）──
+    if interface_traffic is None:
+        interface_traffic = {}
+    port_traffic_top10 = _build_network_port_traffic(
+        interface_traffic, hostid_to_name, hostid_to_host, network_hostnames_all
+    )
 
     # ── 5. 端口利用率 TOP 10 ──
     port_util_top10 = _build_port_util_top10(port_traffic_top10)
@@ -642,25 +718,36 @@ def _build_crc_errors_top10(interface_errors: dict, hostid_to_name: dict) -> lis
     return top
 
 
-def _build_network_port_traffic(host_metrics: dict, network_hostnames: set) -> list[dict]:
-    """从 host_metrics 中筛选网络设备，按流量排序取 TOP 10"""
-    # 只取网络设备，按 network_in 降序排列
-    net_hosts = []
-    for hostname, metrics in host_metrics.items():
-        if hostname not in network_hostnames:
-            continue
-        net_in = metrics.get("network_in", 0)
-        net_out = metrics.get("network_out", 0)
-        net_hosts.append({
-            "device": hostname,
-            "port": "auto",
-            "in_mbps": net_in,
-            "out_mbps": net_out,
-            "total_mbps": round(net_in + net_out, 2),
-        })
+def _build_network_port_traffic(
+    interface_traffic: dict, hostid_to_name: dict, hostid_to_host: dict,
+    network_hostnames: set
+) -> list[dict]:
+    """从 per-interface 流量数据筛选网络设备接口，按总流量排序取 TOP 10"""
+    # 构建 hostid → display_name 映射
+    host_to_display = {}
+    for hid in hostid_to_name:
+        host_to_display[hid] = hostid_to_name[hid]
 
-    net_hosts.sort(key=lambda x: x["total_mbps"], reverse=True)
-    return net_hosts[:10]
+    entries = []
+    for hostid, ifaces in interface_traffic.items():
+        # 跳过非网络设备
+        if hostid not in hostid_to_name:
+            continue
+        device_name = hostid_to_name[hostid]
+        for iface, traffic in ifaces.items():
+            in_mbps = traffic.get("in_mbps", 0)
+            out_mbps = traffic.get("out_mbps", 0)
+            total = round(in_mbps + out_mbps, 2)
+            entries.append({
+                "device": device_name,
+                "port": iface,
+                "in_mbps": in_mbps,
+                "out_mbps": out_mbps,
+                "total_mbps": total,
+            })
+
+    entries.sort(key=lambda x: x["total_mbps"], reverse=True)
+    return entries[:10]
 
 
 def _build_port_util_top10(port_traffic: list) -> list[dict]:
