@@ -669,20 +669,50 @@ def _build_device_categories(hostid_to_name: dict, system_info: dict, interface_
 def _build_vendor_distribution(system_info: dict, hostid_to_name: dict) -> list[dict]:
     """
     从 SNMP sysDescr / system.name 识别厂商。
-    仅处理有 SNMP 系统信息的主机（网络设备）。
+    SNMP 设备以 system.descr 为主要判断依据，将英文厂商名映射为中文显示名。
+    非 SNMP 设备以主机名关键字作为辅助判断。
     """
-    VENDOR_KEYWORDS = [
-        ("华为", ["huawei", "hw"], "#f5222d"),
-        ("H3C", ["h3c", "comware"], "#fa8c16"),
-        ("思科", ["cisco", "ios", "nx-os"], "#1890ff"),
-        ("锐捷", ["ruijie", "锐捷"], "#52c41a"),
-        ("Juniper", ["juniper", "junos"], "#7b61ff"),
-        ("F5", ["f5", "big-ip"], "#00e5ff"),
-        ("其他", [], "#6b89a3"),
+    # 厂商识别规则：(中文显示名, system.descr 匹配关键词, hostname 匹配关键词, 颜色)
+    VENDOR_RULES = [
+        ("华为技术有限公司",     ["huawei", "vrp", "ce12800", "s5700", "s6700", "s12700",
+                                 "ne40e", "ne20e", "ar2200", "ar3200"],
+                                ["华为", "huawei", "hw-"],           "#f5222d"),
+        ("新华三技术有限公司",   ["h3c", "comware", "s12500", "s10500", "s7500", "s5500",
+                                 "msr", "sr6600", "secpath"],
+                                ["h3c", "h3c-"],                    "#fa8c16"),
+        ("思科系统公司",         ["cisco", "ios", "nx-os", "ios-xe", "ios-xr",
+                                 "nexus", "catalyst", "asa", "isr"],
+                                ["cisco", "思科"],                  "#1890ff"),
+        ("锐捷网络股份有限公司", ["ruijie", "rgos", "rg-s", "rg-n"],
+                                ["ruijie", "ruiji", "锐捷", "rg-"], "#52c41a"),
+        ("瞻博网络",             ["juniper", "junos", "ex-series", "mx-series", "qfx"],
+                                ["juniper", "junos", "瞻博"],       "#7b61ff"),
+        ("F5 Networks",          ["f5 networks", "big-ip", "bigip"],
+                                ["f5", "bigip"],                    "#00e5ff"),
+        ("戴尔科技集团",         ["dell", "force10", "powerconnect"],
+                                ["dell"],                           "#13c2c2"),
+        ("Arista Networks",      ["arista", "eos"],
+                                ["arista"],                         "#eb2f96"),
+        ("飞塔信息",             ["fortinet", "fortigate", "fortiwifi"],
+                                ["fortinet", "forti"],              "#ee3f4d"),
+        ("Palo Alto Networks",   ["palo alto", "pan-os"],
+                                ["paloalto", "pa-"],                "#fa541c"),
+        ("深信服科技",           ["sangfor"],
+                                ["深信服", "sangfor"],              "#2f54eb"),
     ]
 
+    # 构建关键词→(厂商名, 颜色) 的快速查找表
+    descr_kw_map = {}   # system.descr 关键词
+    host_kw_map = {}    # hostname 关键词
+    vendor_colors = {}
+    for vendor_name, descr_keywords, host_keywords, color in VENDOR_RULES:
+        vendor_colors[vendor_name] = color
+        for kw in descr_keywords:
+            descr_kw_map[kw] = (vendor_name, color)
+        for kw in host_keywords:
+            host_kw_map[kw] = (vendor_name, color)
+
     vendor_counts = {}
-    classified = set()
 
     for hostid, name in hostid_to_name.items():
         info = system_info.get(hostid, {})
@@ -690,31 +720,42 @@ def _build_vendor_distribution(system_info: dict, hostid_to_name: dict) -> list[
         sys_name = (info.get("name", "") or "").lower()
         hostname_lower = name.lower()
 
-        matched = False
-        for vendor_name, keywords, color in VENDOR_KEYWORDS:
-            if not keywords:
-                continue
-            for kw in keywords:
-                if kw in descr or kw in sys_name or kw in hostname_lower:
-                    vendor_counts[vendor_name] = vendor_counts.get(vendor_name, 0) + 1
-                    classified.add(hostid)
-                    matched = True
+        matched_vendor = None
+
+        # 1. 优先从 system.descr 识别（SNMP 设备的准确来源）
+        if descr:
+            for kw, (vendor_name, _) in descr_kw_map.items():
+                if kw in descr:
+                    matched_vendor = vendor_name
                     break
-            if matched:
-                break
 
-        if not matched:
-            vendor_counts["其他"] = vendor_counts.get("其他", 0) + 1
-            classified.add(hostid)
+        # 2. system.descr 未命中时，检查 system.name
+        if not matched_vendor and sys_name:
+            for kw, (vendor_name, _) in descr_kw_map.items():
+                if kw in sys_name:
+                    matched_vendor = vendor_name
+                    break
 
-    # 构建输出（含颜色）
-    color_map = {v[0]: v[2] for v in VENDOR_KEYWORDS}
+        # 3. 仍未命中时，通过主机名辅助识别
+        if not matched_vendor:
+            for kw, (vendor_name, _) in host_kw_map.items():
+                if kw in hostname_lower:
+                    matched_vendor = vendor_name
+                    break
+
+        # 4. 无法识别
+        if not matched_vendor:
+            matched_vendor = "其他"
+
+        vendor_counts[matched_vendor] = vendor_counts.get(matched_vendor, 0) + 1
+
+    # 构建输出
     result = []
     for vendor_name, count in sorted(vendor_counts.items(), key=lambda x: -x[1]):
         result.append({
             "name": vendor_name,
             "value": count,
-            "color": color_map.get(vendor_name, "#6b89a3"),
+            "color": vendor_colors.get(vendor_name, "#6b89a3"),
         })
 
     return result
