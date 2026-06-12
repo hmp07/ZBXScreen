@@ -10,7 +10,12 @@ from config import settings
 import os
 
 # 数据库文件路径
-DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+# 容器内后端代码在 /app/，本地开发在 backend/
+# 优先使用环境变量 ZBX_DATA_DIR，回退到相对于本文件的路径
+if os.environ.get("ZBX_DATA_DIR"):
+    DB_DIR = os.environ["ZBX_DATA_DIR"]
+else:
+    DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 os.makedirs(DB_DIR, exist_ok=True)
 DATABASE_URL = f"sqlite+aiosqlite:///{os.path.join(DB_DIR, settings.db_path)}"
 
