@@ -7,7 +7,9 @@
 import sys
 import os
 
-# 将 backend 目录加入路径
+# 将 backend 目录加入路径（兼容本地开发和容器内部署）
+# 本地: scripts/../backend/; 容器: /app/scripts/../ 即 /app/
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 import asyncio
