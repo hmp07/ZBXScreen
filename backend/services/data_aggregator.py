@@ -54,7 +54,7 @@ async def aggregate_all_datasources():
         total_alerts = 0
         all_host_metrics = {}  # hostname → metrics dict
         host_metrics_by_id = {}  # "{datasource_id}:{hostid}" → {hostname, host, metrics...}
-        all_ping_status = {}   # hostid → bool (agent.ping 状态)
+        all_ping_status = {}   # hostid → bool (hostinterface.available 判断)
         all_interface_errors = {}  # hostid → {iface: {in_errors, out_errors, ...}}
         all_interface_traffic = {}  # hostid → {iface: {in_mbps, out_mbps}}
         all_system_info = {}       # hostid → {descr, name, model, serial}
@@ -156,13 +156,14 @@ async def aggregate_all_datasources():
             if hid in hostid_to_groups:
                 h["groups"] = hostid_to_groups[hid]
 
-        # 通过 agent.ping 判断在线/离线状态
+        # 通过 hostinterface.available 判断在线/离线状态
         offline_hostnames = set()
         online_count = 0
         offline_count = 0
         for h in deduped_hosts:
             hostid = h.get("hostid", "")
-            hostname = h.get("host") or h.get("name", "")
+            # 使用 name 字段（优先）作为主机标识，与 all_host_metrics 的 key 保持一致
+            hostname = h.get("name") or h.get("host", "")
             is_online = all_ping_status.get(hostid, True)
             if is_online:
                 online_count += 1
@@ -238,9 +239,12 @@ async def fetch_datasource_data(ds: Datasource) -> dict:
         # 获取活跃触发器数量
         triggers = await client.get_triggers(active_only=True)
 
-        # 一次性获取所有 items，同时提取 metrics + ping 状态 + 网络接口错误 + 系统信息 + 接口流量
+        # 一次性获取所有 items，同时提取 metrics + 网络接口错误 + 系统信息 + 接口流量
         hostids = [h.get("hostid") for h in hosts if h.get("hostid")]
-        item_metrics, ping_status, interface_errors, system_info, interface_traffic = await _fetch_item_data(client, hostids)
+        item_metrics, _, interface_errors, system_info, interface_traffic = await _fetch_item_data(client, hostids)
+
+        # 通过 hostinterface.available 判断在线状态（替代 agent.ping）
+        ping_status = _build_online_status(hosts)
 
         return {
             "hosts": hosts,
@@ -261,13 +265,55 @@ async def fetch_datasource_data(ds: Datasource) -> dict:
                 "interface_errors": {}, "system_info": {}, "interface_traffic": {}}
 
 
+def _build_online_status(hosts: list) -> dict:
+    """
+    通过 hostinterface 的 type + available 判断主机在线状态。
+    Zabbix hostinterface.type: 1=agent, 2=SNMP, 3=IPMI, 4=JMX
+    hostinterface.available: 0=unknown, 1=available, 2=unavailable
+
+    规则：主接口 available=1 为在线，否则为离线。
+    无接口信息的主机默认视为在线。
+    """
+    online_status = {}
+    for h in hosts:
+        hostid = h.get("hostid", "")
+        if not hostid:
+            continue
+        interfaces = h.get("interfaces", [])
+        if not interfaces:
+            # 无接口信息，默认在线
+            online_status[hostid] = True
+            continue
+
+        # 优先检查主接口 (main=1)
+        main_iface = None
+        for iface in interfaces:
+            if iface.get("main") == "1" or iface.get("main") == 1:
+                main_iface = iface
+                break
+        if main_iface is None:
+            # 无主接口，取第一个
+            main_iface = interfaces[0]
+
+        avail = main_iface.get("available", "0")
+        try:
+            avail = int(avail) if isinstance(avail, str) else avail
+        except (ValueError, TypeError):
+            avail = 0
+
+        # available=1 → 在线; available=0(unknown) or 2(unavailable) → 离线
+        online_status[hostid] = (avail == 1)
+
+    return online_status
+
+
 async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[dict, dict, dict, dict, dict]:
     """
-    一次性拉取所有 items，同时提取指标数据、agent.ping 状态、网络接口错误、系统信息和接口流量。
+    一次性拉取所有 items，提取指标数据、网络接口错误、系统信息和接口流量。
+    （在线状态检测已移至 _build_online_status，基于 hostinterface.available 判断）
     避免重复 API 调用。
-    返回: (host_metrics, ping_status, interface_errors, system_info, interface_traffic)
+    返回: (host_metrics, _unused, interface_errors, system_info, interface_traffic)
       host_metrics: {hostid: {cpu, memory, disk, network_in, network_out}}
-      ping_status:  {hostid: bool}
       interface_errors: {hostid: {iface_name: {in_errors, out_errors, in_discards, out_discards}}}
       system_info: {hostid: {descr, name, model, serial}}
       interface_traffic: {hostid: {iface_name: {in_mbps, out_mbps}}}
@@ -306,18 +352,6 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
         hostid = item.get("hostid", "")
         key = item.get("key_", "")
         name = item.get("name", "")
-
-        # --- agent.ping / icmpping 状态检测 ---
-        if key == "agent.ping":
-            try:
-                ping_status[hostid] = (float(item.get("lastvalue", "0")) == 1.0)
-            except (ValueError, TypeError):
-                ping_status[hostid] = False
-        elif key == "icmpping" and hostid not in ping_status:
-            try:
-                ping_status[hostid] = (float(item.get("lastvalue", "0")) > 0)
-            except (ValueError, TypeError):
-                pass
 
         # --- 指标值提取 ---
         try:

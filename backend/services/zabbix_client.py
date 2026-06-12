@@ -130,7 +130,7 @@ class ZabbixClient:
         """获取主机列表"""
         params = {
             "output": ["hostid", "host", "name", "status", "description", "available"],
-            "selectInterfaces": ["ip", "dns", "type", "main"],
+            "selectInterfaces": ["ip", "dns", "type", "main", "available"],
             "selectGroups": ["groupid", "name"],
             # selectInventory removed: may cause "Invalid request" on Zabbix 7.x
             # without super admin permissions
