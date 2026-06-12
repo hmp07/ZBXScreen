@@ -53,6 +53,7 @@ async def aggregate_all_datasources():
         all_hosts = []
         total_alerts = 0
         all_host_metrics = {}  # hostname → metrics dict
+        host_metrics_by_id = {}  # "{datasource_id}:{hostid}" → {hostname, host, metrics...}
         all_ping_status = {}   # hostid → bool (agent.ping 状态)
         all_interface_errors = {}  # hostid → {iface: {in_errors, out_errors, ...}}
         all_system_info = {}       # hostid → {descr, name, model, serial}
@@ -79,13 +80,26 @@ async def aggregate_all_datasources():
             # 合并 item metrics
             item_metrics = result.get("item_metrics", {})
             hostid_to_name = {}
+            hostid_to_host = {}
             for h in hosts_data:
-                hostid_to_name[h.get("hostid", "")] = h.get("host") or h.get("name", "unknown")
+                hid = h.get("hostid", "")
+                hostid_to_name[hid] = h.get("name") or h.get("host", "unknown")
+                hostid_to_host[hid] = h.get("host", hid)
 
             for hostid, metrics in item_metrics.items():
                 hostname = hostid_to_name.get(hostid, hostid)
+                host = hostid_to_host.get(hostid, hostid)
                 if hostname not in all_host_metrics:
                     all_host_metrics[hostname] = metrics
+                # 按 {datasource_id}:{hostid} 存储，供主机详情 API 缓存查询
+                cache_key = f"{ds.id}:{hostid}"
+                host_metrics_by_id[cache_key] = {
+                    "hostname": hostname,
+                    "host": host,
+                    "hostid": hostid,
+                    "datasource_id": ds.id,
+                    **metrics,
+                }
 
             # 合并网络接口错误数据
             iface_errors = result.get("interface_errors", {})
@@ -166,6 +180,7 @@ async def aggregate_all_datasources():
         await upsert_cache(db, "top_network_in", None, top_network_in, expires)
         await upsert_cache(db, "top_network_out", None, top_network_out, expires)
         await upsert_cache(db, "network_devices", None, network_devices, expires)
+        await upsert_cache(db, "host_metrics", None, host_metrics_by_id, expires)
 
         elapsed = time.time() - start
         net_summary = network_devices.get("network_summary", {})
@@ -178,13 +193,14 @@ async def aggregate_all_datasources():
 
         # 更新内存缓存
         memory_cache.set("summary", summary, settings.default_refresh_interval)
-        memory_cache.set("hosts", deduped_hosts, settings.default_refresh_interval)
+        memory_cache.set("hosts_all", deduped_hosts, settings.default_refresh_interval)
         memory_cache.set("top_cpu", top_cpu, settings.default_refresh_interval)
         memory_cache.set("top_memory", top_memory, settings.default_refresh_interval)
         memory_cache.set("top_disk", top_disk, settings.default_refresh_interval)
         memory_cache.set("top_network_in", top_network_in, settings.default_refresh_interval)
         memory_cache.set("top_network_out", top_network_out, settings.default_refresh_interval)
         memory_cache.set("network_devices", network_devices, settings.default_refresh_interval)
+        memory_cache.set("host_metrics_all", host_metrics_by_id, settings.default_refresh_interval)
 
 
 async def fetch_datasource_data(ds: Datasource) -> dict:

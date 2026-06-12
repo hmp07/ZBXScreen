@@ -9,11 +9,36 @@ from datetime import datetime, timedelta, timezone
 
 from database import get_db
 from models.datasource import Datasource
+from models.monitor_cache import MonitorCache
 from utils.auth import get_current_user
 from utils.crypto import decrypt_password
+from utils.cache import memory_cache
 from services.zabbix_client import ZabbixClient, ZabbixAPIError
 
 router = APIRouter(prefix="/api/v1/hosts", tags=["主机监控"])
+
+
+async def _get_cached_hosts(db: AsyncSession):
+    """从缓存读取全量主机列表（scheduler 预聚合）。未命中返回 None。"""
+    cache_key = "hosts_all"
+    mem = memory_cache.get(cache_key)
+    if mem is not None:
+        return mem
+
+    import json
+    from datetime import datetime, timezone
+    result = await db.execute(
+        select(MonitorCache).where(
+            MonitorCache.cache_key == cache_key,
+            MonitorCache.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row:
+        data = json.loads(row.data_json)
+        memory_cache.set(cache_key, data, 30)
+        return data
+    return None
 
 
 def success(data=None, message="success"):
@@ -35,6 +60,35 @@ async def get_host_list(
     current_user: dict = Depends(get_current_user),
 ):
     """主机列表（分页 + 搜索 + 筛选）。不指定 datasource_id 时聚合所有数据源。"""
+    # ── 优先从缓存读取（scheduler 每 30s 预聚合）──
+    cached = await _get_cached_hosts(db)
+    if cached:
+        hosts = cached
+        # datasource 筛选
+        if datasource_id:
+            hosts = [h for h in hosts if h.get("_datasource_id") == datasource_id]
+        # hostgroup 筛选
+        if hostgroup_id:
+            hosts = [h for h in hosts if any(
+                g.get("groupid") == hostgroup_id for g in h.get("groups", [])
+            )]
+        # 搜索
+        if search:
+            search_lower = search.lower()
+            hosts = [h for h in hosts if search_lower in (h.get("host", "") + h.get("name", "")).lower()]
+        # 分页
+        total = len(hosts)
+        start = (page - 1) * page_size
+        hosts_page = hosts[start:start + page_size]
+        return success({
+            "items": hosts_page,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+        })
+
+    # ── 缓存未命中：实时查询 Zabbix（兜底）──
     # 获取数据源列表
     if datasource_id:
         ds_result = await db.execute(select(Datasource).where(Datasource.id == datasource_id))
@@ -98,10 +152,48 @@ async def get_host_detail(
     current_user: dict = Depends(get_current_user),
 ):
     """主机详情"""
+    import json
+    from datetime import datetime, timezone
+
     result = await db.execute(select(Datasource).where(Datasource.id == datasource_id))
     ds = result.scalar_one_or_none()
     if not ds:
         raise HTTPException(status_code=404, detail={"code": 1003, "message": "数据源不存在"})
+
+    # ── 优先从缓存读取指标 ──
+    cache_key = "host_metrics_all"
+    mem = memory_cache.get(cache_key)
+    if mem is None:
+        row = await db.execute(
+            select(MonitorCache).where(
+                MonitorCache.cache_key == cache_key,
+                MonitorCache.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
+        row = row.scalar_one_or_none()
+        if row:
+            mem = json.loads(row.data_json)
+            memory_cache.set(cache_key, mem, 30)
+
+    if mem:
+        entry = mem.get(f"{datasource_id}:{hostid}")
+        if entry:
+            # 从 hosts 缓存取主机对象
+            hosts_cached = await _get_cached_hosts(db)
+            host_obj = None
+            if hosts_cached:
+                for h in hosts_cached:
+                    if h.get("hostid") == hostid and h.get("_datasource_id") == datasource_id:
+                        host_obj = h
+                        break
+            if host_obj is None:
+                host_obj = {"hostid": hostid, "host": entry["host"], "name": entry["hostname"]}
+
+            metrics = {k: v for k, v in entry.items()
+                       if k in ("cpu_usage", "memory_usage", "disk_usage", "network_in", "network_out")}
+            return success({"host": host_obj, "metrics": metrics})
+
+    # ── 缓存未命中：实时查询 Zabbix（兜底）──
 
     try:
         client = create_client(ds)
@@ -157,6 +249,8 @@ async def get_host_history(
     current_user: dict = Depends(get_current_user),
 ):
     """主机历史数据"""
+    from services.history_cache import get_or_fetch_history
+
     result = await db.execute(select(Datasource).where(Datasource.id == datasource_id))
     ds = result.scalar_one_or_none()
     if not ds:
@@ -169,11 +263,8 @@ async def get_host_history(
     end_ts = int(end.timestamp())
 
     try:
-        client = create_client(ds)
-        if (end_ts - start_ts) <= 86400:
-            data = await client.get_history([hostid], item_key, start_ts, end_ts)
-        else:
-            data = await client.get_trends([hostid], item_key, start_ts, end_ts)
+        # 缓存优先（内部自动回退到实时 Zabbix API）
+        data = await get_or_fetch_history(datasource_id, hostid, item_key, start_ts, end_ts)
 
         return success({
             "hostid": hostid, "item_key": item_key,
