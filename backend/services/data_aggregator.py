@@ -381,11 +381,16 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
             host_metrics[hostid] = {}
 
         if "cpu" in key and "util" in key:
-            # system.cpu.util[,idle] → val=idle% → usage = 100 - val
+            # system.cpu.util[,idle] → val=idle% → usage = 100 - val (基准值)
+            # system.cpu.util[,idle,avg1] / [,idle,avg5] → 次要变体，不覆盖基准
             # system.cpu.util (bare, no params) → val=usage% → usage = val
-            # SNMP device keys: system.cpu.util[hwEntityCpuUsage.N] → don't match idle
+            # SNMP device keys: system.cpu.util[hwEntityCpuUsage.N] → 不含 idle
             if "idle" in key:
-                host_metrics[hostid]["cpu"] = round(100.0 - val, 1)
+                cpu_val = round(100.0 - val, 1)
+                # 优先取基准 [,idle]（idle 紧挨 ]），排除 [,idle,avgN] 变体
+                is_base_idle = key.rstrip("]").endswith(",idle") or key.rstrip("]").endswith("[idle")
+                if is_base_idle or "cpu" not in host_metrics[hostid]:
+                    host_metrics[hostid]["cpu"] = cpu_val
             elif "cpu" not in host_metrics[hostid]:
                 # Fallback: bare system.cpu.util (no idle param) = direct utilization
                 # Only set if no [,idle] variant was already processed
