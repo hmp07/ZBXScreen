@@ -25,11 +25,19 @@ async def network_dashboard(
 ):
     """网络大屏聚合数据"""
 
-    # ── 1. 网络设备数据（从 monitor_cache 读取）──
-    network_cache = await db.execute(
-        select(MonitorCache).where(MonitorCache.cache_key == "network_devices_all")
-    )
-    net_row = network_cache.scalar_one_or_none()
+    # ── 1. 网络设备数据（先内存缓存，再 SQLite）──
+    net_row = None
+    net_data = memory_cache.get("network_devices_all")
+    if net_data is None:
+        network_cache = await db.execute(
+            select(MonitorCache).where(MonitorCache.cache_key == "network_devices_all")
+        )
+        net_row = network_cache.scalar_one_or_none()
+        if net_row:
+            net_data = json.loads(net_row.data_json)
+            memory_cache.set("network_devices_all", net_data, 30)
+    else:
+        net_row = True  # 标记缓存命中
 
     device_categories = []
     vendor_distribution = []
@@ -39,8 +47,7 @@ async def network_dashboard(
     summary_data = {"total": 0, "online": 0, "offline": 0, "alert_devices": 0, "total_traffic_mbps": 0.0}
 
     network_hostnames = set()
-    if net_row:
-        net_data = json.loads(net_row.data_json)
+    if net_data:
         device_categories = net_data.get("device_categories", [])
         vendor_distribution = net_data.get("vendor_distribution", [])
         crc_errors_top10 = net_data.get("crc_errors_top10", [])

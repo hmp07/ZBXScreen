@@ -224,14 +224,16 @@ async def aggregate_all_datasources():
               f"{elapsed:.1f}s")
 
         # 更新内存缓存
-        memory_cache.set("summary", summary, settings.default_refresh_interval)
+        # 内存缓存 key 必须与 monitor.py get_cached 的 key 格式一致
+        # get_cached 使用: f"{cache_type}_{datasource_id or 'all'}" = "{type}_all"
+        memory_cache.set("summary_all", summary, settings.default_refresh_interval)
         memory_cache.set("hosts_all", deduped_hosts, settings.default_refresh_interval)
-        memory_cache.set("top_cpu", top_cpu, settings.default_refresh_interval)
-        memory_cache.set("top_memory", top_memory, settings.default_refresh_interval)
-        memory_cache.set("top_disk", top_disk, settings.default_refresh_interval)
-        memory_cache.set("top_network_in", top_network_in, settings.default_refresh_interval)
-        memory_cache.set("top_network_out", top_network_out, settings.default_refresh_interval)
-        memory_cache.set("network_devices", network_devices, settings.default_refresh_interval)
+        memory_cache.set("top_cpu_all", top_cpu, settings.default_refresh_interval)
+        memory_cache.set("top_memory_all", top_memory, settings.default_refresh_interval)
+        memory_cache.set("top_disk_all", top_disk, settings.default_refresh_interval)
+        memory_cache.set("top_network_in_all", top_network_in, settings.default_refresh_interval)
+        memory_cache.set("top_network_out_all", top_network_out, settings.default_refresh_interval)
+        memory_cache.set("network_devices_all", network_devices, settings.default_refresh_interval)
         memory_cache.set("host_metrics_all", host_metrics_by_id, settings.default_refresh_interval)
 
 
