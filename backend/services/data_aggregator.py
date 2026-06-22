@@ -363,6 +363,14 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
         key = item.get("key_", "")
         name = item.get("name", "")
 
+        # 跳过从未采集到数据的 item（lastclock=0 表示 host 离线/未响应）
+        try:
+            lc = int(item.get("lastclock", "0") or "0")
+        except (ValueError, TypeError):
+            lc = 0
+        if lc == 0:
+            continue
+
         # --- 指标值提取 ---
         try:
             val = float(item.get("lastvalue", "0"))
