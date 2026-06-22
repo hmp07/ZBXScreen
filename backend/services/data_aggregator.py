@@ -192,6 +192,14 @@ async def aggregate_all_datasources():
             all_host_metrics, all_interface_traffic
         )
 
+        # ── 从服务器 TOP N 排行中排除网络设备主机 ──
+        net_hostnames = set(network_devices.get("network_hosts", []))
+        top_cpu = [x for x in top_cpu if x["host"] not in net_hostnames]
+        top_memory = [x for x in top_memory if x["host"] not in net_hostnames]
+        top_disk = [x for x in top_disk if x["host"] not in net_hostnames]
+        top_network_in = [x for x in top_network_in if x["host"] not in net_hostnames]
+        top_network_out = [x for x in top_network_out if x["host"] not in net_hostnames]
+
         # 写入缓存表
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         expires = now + timedelta(seconds=settings.default_refresh_interval + 5)
@@ -362,8 +370,16 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
         if hostid not in host_metrics:
             host_metrics[hostid] = {}
 
-        if "cpu" in key and "idle" in key:
-            host_metrics[hostid]["cpu"] = round(100.0 - val, 1)
+        if "cpu" in key and "util" in key:
+            # system.cpu.util[,idle] → val=idle% → usage = 100 - val
+            # system.cpu.util (bare, no params) → val=usage% → usage = val
+            # SNMP device keys: system.cpu.util[hwEntityCpuUsage.N] → don't match idle
+            if "idle" in key:
+                host_metrics[hostid]["cpu"] = round(100.0 - val, 1)
+            elif "cpu" not in host_metrics[hostid]:
+                # Fallback: bare system.cpu.util (no idle param) = direct utilization
+                # Only set if no [,idle] variant was already processed
+                host_metrics[hostid]["cpu"] = round(val, 1)
         elif "memory" in key and "utilization" in key:
             host_metrics[hostid]["memory"] = round(val, 1)
         elif "memory" in key and "pused" in key:
