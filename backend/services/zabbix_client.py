@@ -153,7 +153,7 @@ class ZabbixClient:
         params = {
             "hostids": hostids,
             "output": ["itemid", "hostid", "name", "key_", "lastvalue", "lastclock", "units", "value_type"],
-            "limit": 10000,  # 提高上限确保取回所有 items（16 主机约 3000+ items）
+            "limit": 100000,  # 确保取回所有 items（251 主机约 12500+ items）
         }
         items = await self._call("item.get", params)
 
@@ -244,6 +244,48 @@ class ZabbixClient:
         return await self._call("hostgroup.get", {
             "output": ["groupid", "name"],
         })
+
+    async def get_snmp_system_info(self, hostids: list) -> dict:
+        """
+        专用方法：获取 SNMP 系统信息（system.descr, system.name, system.hw.*）。
+        使用 Zabbix API search 参数服务端过滤，避免全量拉取 item 超时。
+        返回: {hostid: {descr, name, model, serial}}
+        """
+        system_info = {}
+
+        # 搜索 system.descr / system.name / system.hw.model / system.hw.serialnumber
+        search_patterns = ["system.descr", "system.name", "system.hw.model",
+                          "system.hw.serialnumber", "system.hw.uptime"]
+
+        for pattern in search_patterns:
+            try:
+                items = await self._call("item.get", {
+                    "hostids": hostids,
+                    "search": {"key_": pattern},
+                    "output": ["itemid", "hostid", "name", "key_", "lastvalue"],
+                    "limit": 5000,
+                })
+                for item in items:
+                    hostid = item.get("hostid", "")
+                    key = item.get("key_", "")
+                    val = str(item.get("lastvalue", "")) if item.get("lastvalue") else ""
+
+                    if hostid not in system_info:
+                        system_info[hostid] = {}
+
+                    if "system.descr" in key:
+                        system_info[hostid]["descr"] = val
+                    elif "system.name" in key:
+                        system_info[hostid]["name"] = val
+                    elif "hw.model" in key:
+                        system_info[hostid]["model"] = val
+                    elif "hw.serialnumber" in key:
+                        system_info[hostid]["serial"] = val
+            except Exception as e:
+                print(f"[SNMP] Failed to fetch {pattern}: {e}")
+                continue
+
+        return system_info
 
     async def discover_network_interface(self, host_id: str) -> str:
         """网卡自动发现：按 PREFERRED_INTERFACES 顺序匹配，排除 lo"""

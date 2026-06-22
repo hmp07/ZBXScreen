@@ -251,6 +251,17 @@ async def fetch_datasource_data(ds: Datasource) -> dict:
         hostids = [h.get("hostid") for h in hosts if h.get("hostid")]
         item_metrics, _, interface_errors, system_info, interface_traffic = await _fetch_item_data(client, hostids)
 
+        # 专用查询 SNMP 系统信息（system.descr 等），避免大环境超时
+        try:
+            snmp_info = await client.get_snmp_system_info(hostids)
+            # 合并到 system_info（专用查询结果优先）
+            for hid, info in snmp_info.items():
+                if hid not in system_info:
+                    system_info[hid] = {}
+                system_info[hid].update(info)
+        except Exception as e:
+            print(f"[AGGREGATOR] SNMP system info query failed for '{ds.name}': {e}")
+
         # 通过 hostinterface.available 判断在线状态（替代 agent.ping）
         ping_status = _build_online_status(hosts)
 
