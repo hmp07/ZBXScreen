@@ -1,237 +1,191 @@
-# ZBXScreen 容器化部署指南
+# ZBXScreen 离线部署手册（v1.1）
 
-## 系统要求
+---
 
-### 宿主机环境
+## 1. 环境要求
 
-| 项目 | 最低要求 |
-|------|----------|
-| 操作系统 | Linux (x86_64 / ARM64) |
+| 项目 | 要求 |
+|------|------|
+| 操作系统 | Linux（x86_64 或 aarch64/ARM64） |
 | Docker | ≥ 20.10 |
 | Docker Compose | ≥ 2.0（或 `docker compose` 插件） |
 | 内存 | ≥ 512 MB |
-| 磁盘 | ≥ 1 GB（含镜像和数据） |
-
-### 平台支持
-
-| 平台 | 架构 | 适用硬件 |
-|------|------|----------|
-| `linux/amd64` | x86_64 | Intel Xeon, AMD EPYC, 通用 PC 服务器 |
-| `linux/arm64` | ARM64 / aarch64 | 华为鲲鹏 (Kunpeng 920), 飞腾 (Phytium), 树莓派 4B+, Apple M 系列 |
+| 磁盘 | ≥ 2 GB（镜像约 500MB + 数据空间） |
+| 网络 | 容器需能访问 Zabbix Server API |
 
 ---
 
-## 部署步骤
+## 2. 准备部署文件
 
-### 步骤 1：准备项目文件
+将以下 3 个文件放到目标服务器的同一目录（如 `/opt/zbxscreen`）：
 
-```bash
-# 克隆项目
-git clone https://github.com/hmp07/ZBXScreen.git
-cd ZBXScreen
+```
+/opt/zbxscreen/
+├── docker-compose.yml
+├── .env
+└── zabbixscreen-v1.1.tar.gz     # 导出的 Docker 镜像
 ```
 
-### 步骤 2：配置环境变量
+> **获取 `docker-compose.yml` 和 `.env`**：从项目仓库下载，或从构建机上复制。
+
+---
+
+## 3. 导入镜像
 
 ```bash
-# 从模板创建 .env 文件
-cp .env.example .env
+cd /opt/zbxscreen
 
-# 编辑配置（务必修改 APP_SECRET_KEY）
+# 导入镜像
+docker load < zabbixscreen-v1.1.tar.gz
+
+# 确认导入成功
+docker images | grep zabbixscreen
+# 输出: zabbixscreen   v1.1   xxxxx   xx MB
+```
+
+---
+
+## 4. 修改配置文件
+
+### 4.1 编辑 `.env`
+
+```bash
 vi .env
 ```
 
-**必须修改的配置项：**
+**必须修改的配置：**
 
 ```ini
-# 生成一个随机密钥（至少 32 字符）
-APP_SECRET_KEY=替换为随机字符串
+# 生成随机密钥（重要！不可用默认值）
+APP_SECRET_KEY=<使用 openssl rand -base64 32 生成>
+```
 
-# 生产环境关闭调试模式
-DEBUG=false
+**按需修改的配置：**
 
-# 首次登录后建议修改
+```ini
+# 服务端口（默认 8088，冲突时修改）
+ZBX_PORT=8088
+
+# 时区
+TZ=Asia/Shanghai
+
+# 首次登录密码（登录后建议立即修改）
 DEFAULT_ADMIN_PASSWORD=Admin@123
 ```
 
-> 可用 `openssl rand -base64 32` 生成随机 APP_SECRET_KEY
+### 4.2 确认 `docker-compose.yml`
 
-### 步骤 3：构建 Docker 镜像
+检查端口映射和挂载路径是否符合预期，一般无需修改。
 
-#### 单平台构建（快速本地测试）
+---
 
-```bash
-# 构建当前平台镜像
-docker build -t zabbixscreen:latest .
-```
-
-#### 多平台构建（生产发布）
+## 5. 启动服务
 
 ```bash
-# 1. 创建多架构构建器（仅首次需要）
-docker buildx create --name multiarch-builder --use
-docker buildx inspect --bootstrap
+cd /opt/zbxscreen
 
-# 2. 构建并推送到镜像仓库（替换为你的仓库地址）
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --tag your-registry/zabbixscreen:latest \
-  --push .
-
-# 3. 本地单平台构建测试（仅当前架构）
-docker buildx build \
-  --platform linux/amd64 \
-  --tag zabbixscreen:latest \
-  --load .
-
-# 或者分别构建多平台：
-#   docker buildx build --platform linux/amd64 -t zabbixscreen:amd64 --load .
-#   docker buildx build --platform linux/arm64 -t zabbixscreen:arm64 --load .
-```
-
-> **注意：** `--load` 不支持多平台同时导出（manifest list）。多平台批量构建必须使用 `--push` 推送到镜像仓库。
-
-#### ARM64 平台单独构建（鲲鹏/飞腾服务器）
-
-```bash
-# 在 ARM64 服务器上直接构建
-docker build -t zabbixscreen:latest .
-```
-
-### 步骤 4：创建数据目录
-
-```bash
-# 创建持久化数据目录
+# 创建数据目录（设置可写权限）
 mkdir -p data logs
+chmod 777 data logs
 
-# 确保目录可写
-chmod 755 data logs
-```
-
-### 步骤 5：启动服务
-
-```bash
-# 生产模式启动
+# 启动容器（后台运行）
 docker compose up -d
 
-# 查看日志
+# 查看启动日志
 docker compose logs -f
-
-# 查看容器状态
-docker compose ps
-
-# 停止服务
-docker compose down
+# 看到 "success: scheduler entered RUNNING state" 后按 Ctrl+C 退出
 ```
 
-### 步骤 6：验证部署
+---
+
+## 6. 检查服务状态
+
+### 6.1 健康检查
 
 ```bash
-# 检查健康状态
 curl http://localhost:8088/api/v1/health
-# 预期输出: {"code":0,"message":"success","data":{"status":"healthy"}}
-
-# 浏览器访问
-# http://<服务器IP>:8088
-# 默认用户名: admin
-# 默认密码: Admin@123
 ```
 
----
+预期输出：
+```json
+{"status":"healthy","timestamp":"...","version":"1.0.0","services":{"database":"ok"}}
+```
 
-## 镜像传输（离线部署）
-
-如果构建机器与部署服务器网络隔离，可使用以下方式传输镜像：
+### 6.2 检查 scheduler（数据聚合）
 
 ```bash
-# === 在构建机器上 ===
-
-# 导出为 tar 文件
-docker save zabbixscreen:latest | gzip > zabbixscreen-latest.tar.gz
-
-# 传输到目标服务器
-scp zabbixscreen-latest.tar.gz user@target-server:/tmp/
-
-# === 在目标服务器上 ===
-
-# 导入镜像
-docker load < /tmp/zabbixscreen-latest.tar.gz
-
-# 启动服务
-cd /path/to/ZBXScreen
-docker compose up -d
+# 等待 30 秒后检查 scheduler 日志
+docker compose logs --tail=10 zabbixscreen | grep AGGREGATOR
 ```
 
----
-
-## 容器架构
-
+预期输出类似：
 ```
-┌─────────────────────────────────────────┐
-│              Docker Container           │
-│                                         │
-│  ┌──────────┐    ┌──────────────────┐  │
-│  │  Nginx   │───▶│  uvicorn:5001    │  │
-│  │  :80     │    │  (FastAPI)        │  │
-│  │  静态文件 │    └──────────────────┘  │
-│  │  + /api  │                           │
-│  │  反向代理 │    ┌──────────────────┐  │
-│  └──────────┘    │  scheduler        │  │
-│                  │  (APScheduler)    │  │
-│                  │  数据聚合+告警检测  │  │
-│                  └──────────────────┘  │
-│                                         │
-│  ┌──────────────────────────────────┐  │
-│  │  SQLite (WAL 模式)               │  │
-│  │  /app/data/zabbixscreen.db      │  │
-│  └──────────────────────────────────┘  │
-└─────────────────────────────────────────┘
-
-进程管理: Supervisor (管理 Nginx + uvicorn + scheduler)
+[AGGREGATOR] Done: 1 sources, 251 hosts (244 online), ... cpu=10 mem=10 ...
 ```
 
----
+如果看到 `cpu=0 mem=0` 或无输出，说明 scheduler 未正常运行，执行：
+```bash
+docker compose logs zabbixscreen | grep -i "error\|traceback"
+```
 
-## 环境变量完整参考
-
-| 变量 | 必填 | 默认值 | 说明 |
-|------|:--:|--------|------|
-| `APP_SECRET_KEY` | **是** | — | JWT 签名 + AES 加密密钥 |
-| `TZ` | 否 | `Asia/Shanghai` | 时区 |
-| `DEBUG` | 否 | `false` | FastAPI 调试模式 |
-| `DEFAULT_ADMIN_PASSWORD` | 否 | `Admin@123` | 初始管理员密码 |
-| `DEFAULT_REFRESH_INTERVAL` | 否 | `30` | 数据刷新间隔（秒） |
-| `ALERT_CHECK_INTERVAL` | 否 | `60` | 告警检测间隔（秒） |
-| `DATA_RETENTION_DAYS` | 否 | `30` | 数据保留天数 |
-| `ZABBIX_REQUEST_TIMEOUT` | 否 | `25` | Zabbix API 超时（秒） |
-| `AGGREGATION_TOTAL_TIMEOUT` | 否 | `28` | 数据聚合总超时（秒） |
-| `WEBHOOK_REQUEST_TIMEOUT` | 否 | `10` | Webhook 发送超时（秒） |
-| `ZBX_PORT` | 否 | `8088` | 宿主机映射端口 |
-
----
-
-## 数据持久化
-
-| 宿主机目录 | 容器内路径 | 内容 |
-|------------|-----------|------|
-| `./data/` | `/app/data/` | SQLite 数据库文件 |
-| `./logs/` | `/app/logs/` | Supervisor 日志、Nginx 日志、应用日志 |
-
-> 升级容器或重建时，保留这两个目录即可保留所有数据。
-
----
-
-## 常用运维命令
+### 6.3 检查进程
 
 ```bash
+docker compose ps
+# STATUS 应为 "Up" 且 "(healthy)"
+```
+
+---
+
+## 7. 登录使用
+
+### 7.1 浏览器访问
+
+```
+http://<服务器IP>:8088
+```
+
+### 7.2 登录
+
+| 项目 | 值 |
+|------|-----|
+| 用户名 | `admin` |
+| 密码 | `.env` 中 `DEFAULT_ADMIN_PASSWORD` 的值（默认 `Admin@123`） |
+
+> 首次使用默认密码登录会弹出修改密码提示，建议立即修改。
+
+### 7.3 配置 Zabbix 数据源
+
+登录后进入 **数据源管理**，添加 Zabbix Server 连接：
+
+| 字段 | 说明 |
+|------|------|
+| 名称 | 自定义，如"生产环境Zabbix" |
+| URL | Zabbix API 地址，如 `http://10.4.0.250` |
+| 用户名 | Zabbix API 用户 |
+| 密码 | Zabbix API 密码 |
+
+点击 **测试连接**，确认成功后保存。
+
+> 支持 Zabbix 5.x / 6.x / 7.x，系统会自动适配 API 版本。
+
+### 7.4 添加后首次数据加载
+
+数据源保存后，scheduler 会在 **30 秒内**开始首次数据聚合（约 10-30 秒完成，取决于主机数量）。聚合完成后各监控大屏将显示数据。
+
+---
+
+## 8. 常用运维命令
+
+```bash
+# 进入部署目录
+cd /opt/zbxscreen
+
 # 查看运行状态
 docker compose ps
 
 # 查看实时日志
-docker compose logs -f zabbixscreen
-
-# 查看最近 100 行日志
-docker compose logs --tail=100
+docker compose logs -f
 
 # 重启服务
 docker compose restart
@@ -239,70 +193,60 @@ docker compose restart
 # 停止服务
 docker compose down
 
-# 停止并删除数据卷（会丢失数据！）
-docker compose down -v
-
-# 进入容器调试
-docker exec -it zabbixscreen bash
-
-# 查看容器资源使用
-docker stats zabbixscreen
+# 启动服务
+docker compose up -d
 
 # 更新镜像后重新部署
 docker compose down
-docker build -t zabbixscreen:latest .
+docker load < zabbixscreen-v1.2.tar.gz
+# 修改 docker-compose.yml 中的镜像 tag 为 v1.2
 docker compose up -d
 ```
 
 ---
 
-## 故障排查
-
-### 容器无法启动
+## 9. 数据备份与恢复
 
 ```bash
-# 查看日志
-docker compose logs zabbixscreen
+# 备份数据库
+cp /opt/zbxscreen/data/zabbixscreen.db /opt/backup/zabbixscreen-$(date +%Y%m%d).db
 
-# 常见原因:
-# 1. 端口冲突: 修改 ZBX_PORT
-# 2. 权限问题: 确保 data/ logs/ 目录可写
-# 3. APP_SECRET_KEY 未设置
-```
-
-### 数据库损坏
-
-```bash
-# 备份当前数据库
-cp data/zabbixscreen.db data/zabbixscreen.db.bak
-
-# 重建容器（会创建新数据库）
+# 恢复数据库（先停止容器）
 docker compose down
-rm -f data/zabbixscreen.db*
+cp /opt/backup/zabbixscreen-20260101.db /opt/zbxscreen/data/zabbixscreen.db
+chmod 666 /opt/zbxscreen/data/zabbixscreen.db
 docker compose up -d
-```
-
-### ARM64 平台兼容性
-
-```bash
-# 如果镜像不支持 ARM64，在目标服务器上本地构建:
-docker build -t zabbixscreen:latest .
-docker compose up -d
-```
-
-### Nginx 502 错误
-
-```bash
-# uvicorn 未正常启动，查看应用日志
-docker exec zabbixscreen cat /app/logs/uvicorn_err.log
 ```
 
 ---
 
-## 安全建议
+## 10. 故障排查
 
-1. **务必修改 `APP_SECRET_KEY`**：使用随机生成的 64 字符密钥
-2. **首次登录后修改管理员密码**：默认密码 `Admin@123`
-3. **使用反向代理开启 HTTPS**：生产环境建议在容器前加 Nginx/Caddy 提供 TLS
-4. **限制端口暴露**：如果使用外部反向代理，可将端口映射为 `127.0.0.1:8088:80`
-5. **定期备份数据库**：`cp data/zabbixscreen.db data/backup-$(date +%Y%m%d).db`
+| 现象 | 排查方法 |
+|------|----------|
+| 容器无法启动 | `docker compose logs` 查看错误；检查端口是否冲突 |
+| 页面能打开但无数据 | 确认已配置数据源；`docker compose logs \| grep AGGREGATOR` 检查 scheduler |
+| scheduler 日志有 `Permission denied: '/data'` | 数据目录权限不足：`chmod 777 data/` |
+| scheduler 日志有 `timeout` | Zabbix API 超时：增加 `.env` 中 `ZABBIX_REQUEST_TIMEOUT` 的值 |
+| 主机数量为 0 | 确认 Zabbix 数据源 URL、用户名、密码正确；测试连接 |
+| CPU/内存数据为空 | 确认 Zabbix 主机有 `system.cpu.util[,idle]` 和 `vm.memory.utilization` 监控项 |
+
+---
+
+## 11. 网络设备识别配置
+
+如需网络监控大屏显示设备数据，请在 Zabbix 中将网络设备（交换机、路由器、防火墙等）分配到以下**任一**主机组：
+
+| 主机组名称 | 说明 |
+|-----------|------|
+| `网络设备` | 通用网络设备 |
+| `网络安全设备` | 防火墙、IPS 等 |
+| `安全设备` | 安全类设备 |
+| `交换机` | 交换机 |
+| `路由器` | 路由器 |
+
+> 主机组名称需**严格匹配**。设备加入上述任一主机组后，网络监控大屏将自动识别并展示。
+
+---
+
+*手册版本：v1.1 | 适用 ZBXScreen v1.1+*
