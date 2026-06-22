@@ -309,8 +309,10 @@ def _build_online_status(hosts: list) -> dict:
         except (ValueError, TypeError):
             avail = 0
 
-        # available=1 → 在线; available=0(unknown) or 2(unavailable) → 离线
-        online_status[hostid] = (avail == 1)
+        # available=0(unknown): 初始状态，假设在线（仅排除 confirmed unavailable）
+        # available=1(available): 确认在线
+        # available=2(unavailable): 确认离线
+        online_status[hostid] = (avail != 2)
 
     return online_status
 
