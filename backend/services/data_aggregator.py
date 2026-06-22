@@ -346,10 +346,26 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
     if not hostids:
         return {}, {}, {}, {}, {}
 
-    try:
-        items = await client.get_items(hostids=hostids)
-    except ZabbixAPIError:
+    # 大环境分批并行查询，避免单次 API 超时（每批 50 个 host，并行请求）
+    import asyncio as _asyncio
+    batch_size = 50
+    batches = [hostids[i:i+batch_size] for i in range(0, len(hostids), batch_size)]
+
+    async def _fetch_batch(batch_hostids):
+        try:
+            return await client.get_items(hostids=batch_hostids)
+        except ZabbixAPIError:
+            return []
+
+    all_items = []
+    batch_results = await _asyncio.gather(*[_fetch_batch(b) for b in batches])
+    for batch in batch_results:
+        all_items.extend(batch)
+
+    if not all_items:
         return {}, {}, {}, {}, {}
+
+    items = all_items
 
     host_metrics = {}
     ping_status = {}

@@ -153,7 +153,7 @@ class ZabbixClient:
         params = {
             "hostids": hostids,
             "output": ["itemid", "hostid", "name", "key_", "lastvalue", "lastclock", "units", "value_type"],
-            "limit": 100000,  # 确保取回所有 items（251 主机约 12500+ items）
+            "limit": 50000,  # 提高上限（251 主机约 12500+ items）
         }
         items = await self._call("item.get", params)
 
