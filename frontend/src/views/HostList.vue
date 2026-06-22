@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <el-table :data="hosts" v-loading="loading" stripe @row-click="goDetail" style="cursor:pointer">
+    <el-table :data="hosts" v-loading="loading" stripe @row-click="goDetail" style="cursor:pointer" max-height="calc(100vh - 200px)">
       <el-table-column prop="host" label="主机名" min-width="140" />
       <el-table-column prop="name" label="可见名称" min-width="160" />
       <el-table-column label="IP" width="140">
@@ -40,12 +40,12 @@
     <div class="pagination-wrap" v-if="total > 0">
       <el-pagination
         v-model:current-page="page"
-        v-model:page-size="pageSize"
+        :page-size="pageSize"
         :page-sizes="[30, 40, 50, 60, 70, 80, 90, 100]"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"
         @current-change="fetchHosts"
-        @size-change="fetchHosts"
+        @size-change="onPageSizeChange"
       />
     </div>
   </div>
@@ -66,6 +66,12 @@ const total = ref(0);
 let searchTimeout: ReturnType<typeof setTimeout>;
 
 onMounted(() => fetchHosts());
+
+function onPageSizeChange(size: number) {
+  pageSize.value = size;
+  page.value = 1;
+  fetchHosts();
+}
 
 async function fetchHosts() {
   loading.value = true;
