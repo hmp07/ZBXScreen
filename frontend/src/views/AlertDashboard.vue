@@ -118,9 +118,9 @@ import { getSettings } from '@/api/settings'
 import { useLayoutStore } from '@/stores/layout'
 
 const layoutStore = useLayoutStore()
-const brandName = ref('ZBXBoard')
+const brandName = computed(() => layoutStore.brandTitle || 'ZBXBoard')
 const brandSub = ref('')
-const logoLetter = ref('Z')
+const logoLetter = computed(() => layoutStore.brandTitle?.charAt(0) || 'Z')
 const logoUrl = ref('')
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -312,7 +312,7 @@ onMounted(async () => {
   try {
     const sRes = await getSettings()
     const s = sRes.data.data
-    if (s.SYSTEM_TITLE) { brandName.value = s.SYSTEM_TITLE; logoLetter.value = s.SYSTEM_TITLE.charAt(0) }
+    // 品牌标题和图标由 AppLayout 统一加载到 layoutStore
     if (s.SYSTEM_SUBTITLE) brandSub.value = s.SYSTEM_SUBTITLE
     if (s.SYSTEM_LOGO) logoUrl.value = s.SYSTEM_LOGO
   } catch(e) { /* defaults */ }

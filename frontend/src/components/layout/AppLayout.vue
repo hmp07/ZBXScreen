@@ -45,11 +45,25 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Sidebar from "./Sidebar.vue";
 import { useLayoutStore } from "@/stores/layout";
+import axios from "axios";
 
 const layoutStore = useLayoutStore();
 const route = useRoute();
 const router = useRouter();
 const particleCanvas = ref<HTMLCanvasElement>();
+
+// ── 集中获取品牌设置（登录页 + 侧边栏 + 所有大屏页面共用）──
+async function fetchBrand() {
+  try {
+    const res = await axios.get("/api/v1/settings/public");
+    if (res.data?.code === 0) {
+      const d = res.data.data;
+      layoutStore.setBrand(d.title || "ZBXScreen", d.logo || "");
+    }
+  } catch {
+    // keep defaults
+  }
+}
 
 // ── 背景粒子动画 ──
 let particleAnimId: number;
@@ -185,7 +199,7 @@ watch(() => layoutStore.sidebarEffective, () => {
   setTimeout(() => window.dispatchEvent(new Event('resize')), 260);
 });
 
-onMounted(() => { initParticles(); });
+onMounted(() => { initParticles(); fetchBrand(); });
 onUnmounted(() => { stopCarousel(); cancelAnimationFrame(particleAnimId); });
 </script>
 

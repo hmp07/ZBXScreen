@@ -5,7 +5,7 @@
         <!-- Top Bar -->
         <div class="topbar">
           <div class="breadcrumb">
-            <a class="home" @click="$router.push('/dashboard')"><span class="home-logo">Z</span><span class="home-text">ZBXBoard</span></a>
+            <a class="home" @click="$router.push('/dashboard')"><span class="home-logo">{{ layoutStore.brandTitle?.charAt(0) || 'Z' }}</span><span class="home-text">{{ layoutStore.brandTitle || 'ZBXBoard' }}</span></a>
             <span class="sep">/</span><a @click="$router.push('/alerts/records')">告警</a>
             <span class="sep">/</span><a @click="$router.push('/alerts/records')">告警列表</a>
             <span class="sep">/</span><span class="current">{{ alert?.event_id?.slice(0,12) || '...' }}</span>
