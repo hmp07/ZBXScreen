@@ -28,6 +28,7 @@ LABEL org.opencontainers.image.vendor="ZBXScreen"
 LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
+ENV ZBX_DATA_DIR=/app/data
 
 # 安装系统依赖
 RUN apt-get update && \

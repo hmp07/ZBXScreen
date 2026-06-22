@@ -25,6 +25,7 @@ services:
     environment:
       # === 必填 ===
       - APP_SECRET_KEY=${APP_SECRET_KEY:-change-this-in-production}
+      - ZBX_DATA_DIR=/app/data
 
       # === 可选 (均含默认值) ===
       - DEFAULT_REFRESH_INTERVAL=${DEFAULT_REFRESH_INTERVAL:-30}
