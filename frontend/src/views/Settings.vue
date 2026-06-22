@@ -43,6 +43,9 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { getSettings, updateSettings } from "@/api/settings";
+import { useLayoutStore } from "@/stores/layout";
+
+const layoutStore = useLayoutStore();
 const loading = ref(false);
 const fileInput = ref<HTMLInputElement>();
 const form = reactive({
@@ -96,6 +99,8 @@ function clearLogo() {
 
 async function saveSettings() {
   await updateSettings({ ...form });
+  // 同步更新侧边栏品牌显示
+  layoutStore.setBrand(form.system_title, form.system_logo);
   ElMessage.success("设置已保存");
 }
 </script>

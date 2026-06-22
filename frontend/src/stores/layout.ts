@@ -9,6 +9,14 @@ export const useLayoutStore = defineStore("layout", () => {
   const sidebarCollapsed = ref(localStorage.getItem("sidebar_collapsed") === "true");
   const sidebarHovered = ref(false);
   const carouselEnabled = ref(localStorage.getItem("carousel_enabled") === "true");
+
+  // 品牌信息（登录页 + 侧边栏使用，系统设置保存后更新）
+  const brandTitle = ref("ZBXScreen");
+  const brandLogo = ref("");
+  function setBrand(title: string, logo: string) {
+    if (title) brandTitle.value = title;
+    if (logo !== undefined) brandLogo.value = logo;
+  }
   const carouselInterval = ref(
     Number(localStorage.getItem("carousel_interval")) || CAROUSEL_INTERVAL
   );
@@ -89,6 +97,9 @@ export const useLayoutStore = defineStore("layout", () => {
     carouselEnabled,
     carouselInterval,
     carouselTick,
+    brandTitle,
+    brandLogo,
+    setBrand,
     toggleSidebar,
     enterFullscreen,
     exitFullscreen,

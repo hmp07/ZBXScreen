@@ -6,8 +6,9 @@
     @mouseleave="layoutStore.sidebarHovered = false"
   >
     <div class="logo">
-      <span class="logo-icon" v-if="layoutStore.sidebarEffective">Z</span>
-      <span class="logo-text" v-else>ZBXScreen</span>
+      <img v-if="layoutStore.brandLogo" :src="layoutStore.brandLogo" class="logo-img" />
+      <span v-else-if="layoutStore.sidebarEffective" class="logo-icon">{{ layoutStore.brandTitle?.charAt(0) || 'Z' }}</span>
+      <span v-if="!layoutStore.sidebarEffective" class="logo-text">{{ layoutStore.brandTitle || 'ZBXScreen' }}</span>
     </div>
 
     <el-menu
@@ -73,15 +74,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useLayoutStore } from "@/stores/layout";
 import { useAuthStore } from "@/stores/auth";
+import axios from "axios";
 
 const route = useRoute();
 const router = useRouter();
 const layoutStore = useLayoutStore();
 const authStore = useAuthStore();
+
+// 首次加载时从 API 获取品牌设置，后续由 Settings 页面通过 store 更新
+onMounted(async () => {
+  try {
+    const res = await axios.get("/api/v1/settings/public");
+    if (res.data?.code === 0) {
+      const d = res.data.data;
+      layoutStore.setBrand(d.title || "", d.logo || "");
+    }
+  } catch { /* use defaults */ }
+});
 
 const activeMenu = computed(() => {
   const path = route.path;
@@ -138,6 +151,10 @@ function handleLogout() {
   font-weight: 900;
   color: var(--color-accent);
   font-family: var(--font-num);
+}
+.logo-img {
+  max-height: 40px;
+  max-width: 100%;
 }
 
 .el-menu {
