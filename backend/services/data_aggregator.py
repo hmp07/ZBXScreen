@@ -537,29 +537,43 @@ async def _fetch_host_groups_map(datasources: list) -> dict:
 
 async def _get_network_host_ids(datasources: list) -> set:
     """
-    从 Zabbix 主机组查询所有网络类主机的 hostid。
-    网络组包括：交换机(27)、网络设备(28)、路由器(29)、防火墙(30)、网络安全设备(31)。
+    从 Zabbix 主机组按名称严格匹配查询所有网络类主机的 hostid。
+    主机组名称：网络设备、网络安全设备、安全设备、交换机、路由器。
     """
     from utils.crypto import decrypt_password
 
-    NETWORK_GROUP_IDS = ["27", "28", "29", "30", "31"]
+    NETWORK_GROUP_NAMES = ["网络设备", "网络安全设备", "安全设备", "交换机", "路由器"]
     network_host_ids = set()
 
     if not datasources:
         return network_host_ids
 
-    # 使用第一个启用的数据源
     for ds in datasources:
         try:
             password = decrypt_password(ds.password_encrypted)
             client = ZabbixClient(ds.url, ds.username, password)
 
-            for gid in NETWORK_GROUP_IDS:
+            # 获取所有主机组
+            all_groups = await client.get_hostgroups()
+
+            # 按名称严格匹配网络相关组
+            matched_gids = []
+            for g in all_groups:
+                gname = g.get("name", "")
+                if gname in NETWORK_GROUP_NAMES:
+                    matched_gids.append(g["groupid"])
+                    print(f"[AGGREGATOR] Network group match: '{gname}' (id={g['groupid']})")
+
+            if not matched_gids:
+                print(f"[AGGREGATOR] No network groups found by name in '{ds.name}'")
+                continue
+
+            # 批量查询这些组的成员主机
+            for gid in matched_gids:
                 try:
                     result = await client._call("hostgroup.get", {
                         "groupids": [gid],
-                        "output": ["groupid", "name"],
-                        "selectHosts": ["hostid", "host", "name"],
+                        "selectHosts": ["hostid"],
                     })
                     if result:
                         for h in result[0].get("hosts", []):
