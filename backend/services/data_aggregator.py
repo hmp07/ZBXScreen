@@ -178,12 +178,12 @@ async def aggregate_all_datasources():
             "alert_count": total_alerts,
         }
 
-        # 构建 TOP N 排行（排除 agent.ping=0 的离线主机）
-        top_cpu = _build_top_n(all_host_metrics, "cpu", 10, exclude_hosts=offline_hostnames)
-        top_memory = _build_top_n(all_host_metrics, "memory", 10, exclude_hosts=offline_hostnames)
-        top_disk = _build_top_n(all_host_metrics, "disk", 10, exclude_hosts=offline_hostnames)
-        top_network_in = _build_top_n(all_host_metrics, "network_in", 10, exclude_hosts=offline_hostnames)
-        top_network_out = _build_top_n(all_host_metrics, "network_out", 10, exclude_hosts=offline_hostnames)
+        # 构建 TOP N 排行（排除离线主机，先取 50 条再过滤网络设备后截取前 10）
+        top_cpu = _build_top_n(all_host_metrics, "cpu", 50, exclude_hosts=offline_hostnames)
+        top_memory = _build_top_n(all_host_metrics, "memory", 50, exclude_hosts=offline_hostnames)
+        top_disk = _build_top_n(all_host_metrics, "disk", 50, exclude_hosts=offline_hostnames)
+        top_network_in = _build_top_n(all_host_metrics, "network_in", 50, exclude_hosts=offline_hostnames)
+        top_network_out = _build_top_n(all_host_metrics, "network_out", 50, exclude_hosts=offline_hostnames)
 
         # ── 构建网络设备数据 ──
         network_devices = await _build_network_devices(
@@ -192,13 +192,13 @@ async def aggregate_all_datasources():
             all_host_metrics, all_interface_traffic
         )
 
-        # ── 从服务器 TOP N 排行中排除网络设备主机 ──
+        # ── 从服务器 TOP N 排行中排除网络设备主机，然后截取前 10 ──
         net_hostnames = set(network_devices.get("network_hosts", []))
-        top_cpu = [x for x in top_cpu if x["host"] not in net_hostnames]
-        top_memory = [x for x in top_memory if x["host"] not in net_hostnames]
-        top_disk = [x for x in top_disk if x["host"] not in net_hostnames]
-        top_network_in = [x for x in top_network_in if x["host"] not in net_hostnames]
-        top_network_out = [x for x in top_network_out if x["host"] not in net_hostnames]
+        top_cpu = [x for x in top_cpu if x["host"] not in net_hostnames][:10]
+        top_memory = [x for x in top_memory if x["host"] not in net_hostnames][:10]
+        top_disk = [x for x in top_disk if x["host"] not in net_hostnames][:10]
+        top_network_in = [x for x in top_network_in if x["host"] not in net_hostnames][:10]
+        top_network_out = [x for x in top_network_out if x["host"] not in net_hostnames][:10]
 
         # 写入缓存表
         now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -377,15 +377,21 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
 
     def _parse_iface(item_name: str, key: str) -> str:
         """从 item name 或 key 中提取接口名"""
-        # name 格式: "Interface GE1/0/5(): Inbound packets with errors"
-        m = re.search(r'Interface\s+(\S+?)\(\)', item_name)
+        # name 格式1: "Interface GE1/0/5(): Bits received"
+        # name 格式2: "Interface Eth-Trunk6(EDS-01): Bits received"（含描述括号）
+        # name 格式3: "Interface 25GE2/0/47(): Bits received"
+        m = re.search(r'Interface\s+([^\(:]+)', item_name)
         if m:
-            return m.group(1)
-        # key 格式: net.if.in.errors[ifInErrors.10]
+            return m.group(1).strip()
+        # fallback: 从 key 中提取参数
         m = re.search(r'\[([^\]]+)\]', key)
         if m:
             return m.group(1)
         return "unknown"
+
+    # 预初始化所有主机的基本指标为 0（确保所有主机出现在 TOP N 中）
+    for hid in hostids:
+        host_metrics[hid] = {"network_in": 0.0, "network_out": 0.0}
 
     for item in items:
         hostid = item.get("hostid", "")
@@ -405,9 +411,6 @@ async def _fetch_item_data(client: ZabbixClient, hostids: list[str]) -> tuple[di
             val = float(item.get("lastvalue", "0"))
         except (ValueError, TypeError):
             val = 0.0
-
-        if hostid not in host_metrics:
-            host_metrics[hostid] = {}
 
         if "cpu" in key and "util" in key:
             # system.cpu.util[,idle] → val=idle% → usage = 100 - val (基准值)
