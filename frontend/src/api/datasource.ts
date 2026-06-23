@@ -28,11 +28,11 @@ export function updateDatasource(
   id: number,
   data: { name?: string; url?: string; username?: string; password?: string }
 ) {
-  return request.put(`/datasources/${id}`, data);
+  return request.post(`/datasources/${id}/update`, data);
 }
 
 export function deleteDatasource(id: number) {
-  return request.delete(`/datasources/${id}`);
+  return request.post(`/datasources/${id}/delete`);
 }
 
 export function testConnection(id: number) {
@@ -40,7 +40,7 @@ export function testConnection(id: number) {
 }
 
 export function toggleDatasource(id: number) {
-  return request.put(`/datasources/${id}/toggle`);
+  return request.post(`/datasources/${id}/toggle`);
 }
 
 export function getHostgroups(id: number) {

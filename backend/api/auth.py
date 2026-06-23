@@ -91,7 +91,7 @@ async def refresh(req: RefreshRequest):
     })
 
 
-@router.put("/password")
+@router.post("/password")
 async def change_password(
     req: ChangePasswordRequest,
     current_user: dict = Depends(get_current_user),

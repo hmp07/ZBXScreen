@@ -57,7 +57,7 @@ async def create_rule(
     return success({"id": rule.id}, "规则创建成功")
 
 
-@router.put("/rules/{rule_id}")
+@router.post("/rules/{rule_id}/update")
 async def update_rule(
     rule_id: int,
     req: RuleCreate,
@@ -74,7 +74,7 @@ async def update_rule(
     return success(message="规则修改成功")
 
 
-@router.delete("/rules/{rule_id}")
+@router.post("/rules/{rule_id}/delete")
 async def delete_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_db),
@@ -89,7 +89,7 @@ async def delete_rule(
     return success(message="规则已删除")
 
 
-@router.put("/rules/{rule_id}/toggle")
+@router.post("/rules/{rule_id}/toggle")
 async def toggle_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_db),

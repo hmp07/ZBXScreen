@@ -102,7 +102,7 @@ async def create_datasource(
     return success(datasource_to_dict(ds), "数据源添加成功")
 
 
-@router.put("/{ds_id}")
+@router.post("/{ds_id}/update")
 async def update_datasource(
     ds_id: int,
     req: DatasourceUpdate,
@@ -130,7 +130,7 @@ async def update_datasource(
     return success(datasource_to_dict(ds), "数据源修改成功")
 
 
-@router.delete("/{ds_id}")
+@router.post("/{ds_id}/delete")
 async def delete_datasource(
     ds_id: int,
     db: AsyncSession = Depends(get_db),
@@ -179,7 +179,7 @@ async def test_connection(
         }, "连接失败")
 
 
-@router.put("/{ds_id}/toggle")
+@router.post("/{ds_id}/toggle")
 async def toggle_datasource(
     ds_id: int,
     db: AsyncSession = Depends(get_db),

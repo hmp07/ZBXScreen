@@ -9,15 +9,15 @@ export function createAlertRule(data: any) {
 }
 
 export function updateAlertRule(id: number, data: any) {
-  return request.put(`/alerts/rules/${id}`, data);
+  return request.post(`/alerts/rules/${id}/update`, data);
 }
 
 export function deleteAlertRule(id: number) {
-  return request.delete(`/alerts/rules/${id}`);
+  return request.post(`/alerts/rules/${id}/delete`);
 }
 
 export function toggleAlertRule(id: number) {
-  return request.put(`/alerts/rules/${id}/toggle`);
+  return request.post(`/alerts/rules/${id}/toggle`);
 }
 
 export function getAlertRecords(params: {

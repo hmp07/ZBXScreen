@@ -9,15 +9,15 @@ export function createWebhook(data: any) {
 }
 
 export function updateWebhook(id: number, data: any) {
-  return request.put(`/webhooks/${id}`, data);
+  return request.post(`/webhooks/${id}/update`, data);
 }
 
 export function deleteWebhook(id: number) {
-  return request.delete(`/webhooks/${id}`);
+  return request.post(`/webhooks/${id}/delete`);
 }
 
 export function toggleWebhook(id: number) {
-  return request.put(`/webhooks/${id}/toggle`);
+  return request.post(`/webhooks/${id}/toggle`);
 }
 
 export function testWebhook(id: number) {

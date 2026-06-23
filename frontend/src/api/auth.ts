@@ -9,7 +9,7 @@ export function refreshApi(refreshToken: string) {
 }
 
 export function changePasswordApi(oldPassword: string, newPassword: string) {
-  return request.put("/auth/password", {
+  return request.post("/auth/password", {
     old_password: oldPassword,
     new_password: newPassword,
   });

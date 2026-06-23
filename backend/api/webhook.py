@@ -58,7 +58,7 @@ async def create_webhook(
     return success({"id": cfg.id}, "Webhook 端点创建成功")
 
 
-@router.put("/{webhook_id}")
+@router.post("/{webhook_id}/update")
 async def update_webhook(
     webhook_id: int,
     req: WebhookCreate,
@@ -75,7 +75,7 @@ async def update_webhook(
     return success(message="Webhook 修改成功")
 
 
-@router.delete("/{webhook_id}")
+@router.post("/{webhook_id}/delete")
 async def delete_webhook(
     webhook_id: int,
     db: AsyncSession = Depends(get_db),
@@ -90,7 +90,7 @@ async def delete_webhook(
     return success(message="Webhook 已删除")
 
 
-@router.put("/{webhook_id}/toggle")
+@router.post("/{webhook_id}/toggle")
 async def toggle_webhook(
     webhook_id: int,
     db: AsyncSession = Depends(get_db),
