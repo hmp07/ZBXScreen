@@ -5,5 +5,5 @@ export function getSettings() {
 }
 
 export function updateSettings(data: any) {
-  return request.put("/settings", data);
+  return request.post("/settings", data);
 }

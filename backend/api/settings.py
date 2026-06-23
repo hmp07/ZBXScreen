@@ -51,7 +51,7 @@ async def get_public_settings(db: AsyncSession = Depends(get_db)):
     })
 
 
-@router.put("")
+@router.post("")
 async def update_settings(
     req: SettingsUpdate,
     db: AsyncSession = Depends(get_db),
