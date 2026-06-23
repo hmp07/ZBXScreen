@@ -60,9 +60,14 @@
       <div class="user-avatar">{{ (authStore.username || 'A')[0].toUpperCase() }}</div>
       <div class="user-detail" v-if="!layoutStore.sidebarEffective">
         <span class="user-name">{{ authStore.username }}</span>
-        <span class="user-logout" @click="handleLogout">退出</span>
+        <div class="user-actions">
+          <span class="user-action-link" @click="showPwdDialog = true">修改密码</span>
+          <span class="user-logout" @click="handleLogout">退出</span>
+        </div>
       </div>
     </div>
+
+    <ChangePasswordDialog v-model="showPwdDialog" />
 
     <!-- 收起/展开按钮 -->
     <el-tooltip :content="layoutStore.sidebarEffective ? '展开侧边栏' : '隐藏侧边栏'" placement="right">
@@ -74,11 +79,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useLayoutStore } from "@/stores/layout";
 import { useAuthStore } from "@/stores/auth";
 import axios from "axios";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog.vue";
+
+const showPwdDialog = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -202,6 +210,19 @@ function handleLogout() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.user-actions {
+  display: flex;
+  gap: 8px;
+}
+.user-action-link {
+  font-size: 11px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.user-action-link:hover {
+  color: var(--primary);
 }
 .user-logout {
   font-size: 11px;
