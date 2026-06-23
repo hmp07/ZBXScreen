@@ -124,9 +124,9 @@
                     <div class="top-rank" :class="'r' + (idx + 1)">{{ idx + 1 }}</div>
                     <div class="top-info">
                       <div class="top-host">{{ it.host }}</div>
-                      <div class="top-bar"><div class="top-bar-fill" :style="{ width: (it.value / 1000 * 100) + '%' }"></div></div>
+                      <div class="top-bar"><div class="top-bar-fill" :style="{ width: Math.max(it.value / 10, 0.5) + '%' }"></div></div>
                     </div>
-                    <div class="top-value"><span class="top-value-num">{{ it.value?.toFixed(0) }}</span><span class="top-value-unit">Mbps</span></div>
+                    <div class="top-value"><span class="top-value-num">{{ it.value?.toFixed(2) }}</span><span class="top-value-unit">Mbps</span></div>
                   </div>
                 </div>
               </div>
@@ -143,9 +143,9 @@
                     <div class="top-rank" :class="'r' + (idx + 1)">{{ idx + 1 }}</div>
                     <div class="top-info">
                       <div class="top-host">{{ it.host }}</div>
-                      <div class="top-bar"><div class="top-bar-fill" :style="{ width: (it.value / 1000 * 100) + '%' }"></div></div>
+                      <div class="top-bar"><div class="top-bar-fill" :style="{ width: Math.max(it.value / 10, 0.5) + '%' }"></div></div>
                     </div>
-                    <div class="top-value"><span class="top-value-num">{{ it.value?.toFixed(0) }}</span><span class="top-value-unit">Mbps</span></div>
+                    <div class="top-value"><span class="top-value-num">{{ it.value?.toFixed(2) }}</span><span class="top-value-unit">Mbps</span></div>
                   </div>
                 </div>
               </div>
