@@ -19,9 +19,9 @@ services:
       - "8088:80"
     volumes:
       # 后端代码热挂载：修改 Python 代码后重启容器即可
-      - ./backend:/app
+      - ./backend:/app/backend
       # 排除 venv（如果宿主机有的话会被容器内版本覆盖）
-      - /app/__pycache__
+      - /app/backend/__pycache__
       # 数据持久化
       - ./data:/app/data
       - ./logs:/app/logs

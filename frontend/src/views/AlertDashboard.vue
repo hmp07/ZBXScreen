@@ -95,7 +95,7 @@
             <div class="alert-list-body" ref="alertBodyRef">
               <div class="alert-list-inner" ref="alertInnerRef" :style="{ transform: 'translateY(-' + alertOffset + 'px)' }">
                 <div v-for="a in recentActive" :key="a.id" class="alert-row">
-                  <div class="alert-time">{{ formatAlertTime(a.created_at) }}</div>
+                  <div class="alert-time">{{ formatAlertTime(a.first_occurred) }}</div>
                   <div><span class="alert-sev" :class="a.level?.toLowerCase()">{{ sevLabel(a.level) }}</span></div>
                   <div>
                     <div class="alert-host">{{ a.host_name }}</div>
@@ -116,6 +116,7 @@ import * as echarts from 'echarts'
 import { getAlertDashboard } from '@/api/alert'
 import { getSettings } from '@/api/settings'
 import { useLayoutStore } from '@/stores/layout'
+import { formatDateTime } from '@/utils/format'
 
 const layoutStore = useLayoutStore()
 const brandName = computed(() => layoutStore.brandTitle || 'ZBXBoard')
@@ -165,10 +166,7 @@ const kpis = computed(() => [
 
 function pad(n: number) { return String(n).padStart(2,'0') }
 function sevLabel(level: string) { return LEVEL_LABELS[level] || level }
-function formatAlertTime(t: string | null) {
-  if (!t) return '--:--:--'
-  const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
+function formatAlertTime(t: string | null) { return formatDateTime(t) }
 function tickClock() {
   const d = new Date()
   clock.value = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
@@ -188,7 +186,7 @@ async function fetchData() {
       recentActive.value = d.recent_active
       updateCharts()
     }
-  } catch(e) { /* silent */ }
+  } catch(e) { console.error("AlertDashboard fetchData failed:", e) }
 }
 
 function initLevelPie() {

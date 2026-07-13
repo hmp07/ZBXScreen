@@ -85,8 +85,8 @@ async def test_update_datasource(client: AsyncClient, test_db: AsyncSession, adm
     await test_db.commit()
     await test_db.refresh(ds)
 
-    resp = await client.put(
-        f"/api/v1/datasources/{ds.id}",
+    resp = await client.post(
+        f"/api/v1/datasources/{ds.id}/update",
         json={"name": "NewName", "password": "newpass"},
         headers=_auth_header(admin_token),
     )
@@ -108,8 +108,8 @@ async def test_delete_datasource(client: AsyncClient, test_db: AsyncSession, adm
     await test_db.commit()
     await test_db.refresh(ds)
 
-    resp = await client.delete(
-        f"/api/v1/datasources/{ds.id}",
+    resp = await client.post(
+        f"/api/v1/datasources/{ds.id}/delete",
         headers=_auth_header(admin_token),
     )
     assert resp.status_code == 200
@@ -136,7 +136,7 @@ async def test_toggle_datasource(client: AsyncClient, test_db: AsyncSession, adm
     await test_db.refresh(ds)
 
     # 禁用
-    resp = await client.put(
+    resp = await client.post(
         f"/api/v1/datasources/{ds.id}/toggle",
         headers=_auth_header(admin_token),
     )

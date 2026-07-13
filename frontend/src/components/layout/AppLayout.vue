@@ -141,6 +141,7 @@ let countdownTimer: number | null = null;
 const DASHBOARD_LABELS: Record<string, string> = {
   "/dashboard": "数据中心大屏",
   "/alerts/dashboard": "告警大屏",
+  "/network": "网络监控大屏",
 };
 
 const isMonitor = computed(() => route.path === "/dashboard");

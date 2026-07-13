@@ -96,7 +96,7 @@
                   <div class="tname"><span class="tsev" :class="t.level?.toLowerCase()">{{ sevLabel(t.level) }}</span>{{ t.trigger_name }}</div>
                   <div class="tmeta">{{ formatTime(t.created_at) }}</div>
                 </div>
-                <div class="tval">{{ t.value || '-' }}</div>
+                <div class="tval">{{ t.value ?? '-' }}</div>
               </div>
               <div v-if="(trigTab === 'current' ? activeTriggers : recentTriggers).length === 0" style="color:var(--text-3);text-align:center;padding:20px">无触发器</div>
             </div></div>
@@ -123,7 +123,7 @@
                 <table class="item-table"><thead><tr><th style="width:40%">监控项</th><th>当前值</th><th style="width:22%">趋势</th><th style="width:20%">采集时间</th></tr></thead><tbody>
                   <tr v-for="it in filteredItems" :key="it.key">
                     <td><div class="item-name">{{ it.name }}</div><div class="item-key">{{ it.key_ }}</div></td>
-                    <td class="item-val" :class="it.warn ? 'warn' : ''">{{ it.lastvalue || '-' }} <span class="item-meta">{{ it.units || '' }}</span></td>
+                    <td class="item-val" :class="it.warn ? 'warn' : ''">{{ it.lastvalue != null ? it.lastvalue : '-' }} <span class="item-meta">{{ it.units || '' }}</span></td>
                     <td><div class="spark" :ref="el => setSparkRef(it.key_, el as HTMLElement)"></div></td>
                     <td class="item-meta">{{ it.lastclock ? new Date(parseInt(it.lastclock) * 1000).toLocaleTimeString('zh-CN',{hour12:false}) : '-' }}</td>
                   </tr>

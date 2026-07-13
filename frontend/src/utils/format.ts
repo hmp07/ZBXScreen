@@ -27,6 +27,13 @@ export function formatPercent(value: number): string {
   return (value || 0).toFixed(1) + "%";
 }
 
+export function formatDateTime(t: string | null): string {
+  if (!t) return '-'
+  const d = new Date(t)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 export function formatUptime(seconds: number): string {
   if (!seconds) return "-";
   const d = Math.floor(seconds / 86400);

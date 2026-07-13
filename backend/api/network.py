@@ -101,14 +101,14 @@ async def network_dashboard(
         recent_result = await db.execute(
             select(AlertRecord)
             .where(AlertRecord.status == "active", AlertRecord.host_name.in_(network_hostnames))
-            .order_by(AlertRecord.created_at.desc())
+            .order_by(AlertRecord.first_occurred.desc())
             .limit(20)
         )
     else:
         recent_result = await db.execute(
             select(AlertRecord)
             .where(AlertRecord.status == "active")
-            .order_by(AlertRecord.created_at.desc())
+            .order_by(AlertRecord.first_occurred.desc())
             .limit(20)
         )
     recent_alerts = []
@@ -119,6 +119,7 @@ async def network_dashboard(
             "trigger_name": r.trigger_name,
             "level": r.level,
             "status": r.status,
+            "first_occurred": r.first_occurred.isoformat() if r.first_occurred else None,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         })
 

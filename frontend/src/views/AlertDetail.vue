@@ -128,7 +128,7 @@ let clockTimer: number
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function formatTime(t: string | null) { if (!t) return '-'; return new Date(t).toLocaleString('zh-CN') }
-function acknowledge() { ElMessage.info('告警已确认') }
+function acknowledge() { ElMessage.info('告警确认功能待实现') }
 function sevLabel(level: string): string { const m: Record<string,string> = { DISASTER:'灾难', HIGH:'严重', AVERAGE:'一般', WARNING:'警告', INFO:'信息' }; return m[level] || level || '-' }
 function levelColor(level: string): string { const m: Record<string,string> = { DISASTER:'#820014', HIGH:'#f5222d', AVERAGE:'#faad14', WARNING:'#fa8c16', INFO:'#1890ff' }; return m[level] || '#6b89a3' }
 
@@ -156,16 +156,18 @@ onMounted(async () => {
 
   // Fetch alert detail
   try {
-    const res = await getAlertRecords({ page: 1, page_size: 1 })
+    // 用较大 page_size 确保能查到目标告警
+    const res = await getAlertRecords({ page: 1, page_size: 100 })
     const items = res.data.data?.items || []
-    alert.value = items.find((a: any) => a.id === alertId.value) || items[0] || null
+    alert.value = items.find((a: any) => a.id === alertId.value) || null
     // Fetch related alerts (same host)
     if (alert.value) {
       const rel = await getAlertRecords({ page: 1, page_size: 10 })
       relatedAlerts.value = (rel.data.data?.items || []).filter((a: any) => a.host_id === alert.value.host_id && a.id !== alert.value.id)
       // Fetch webhook logs
       try {
-        const wRes = await getWebhookLogs(1, { page: 1, page_size: 10 }) // use first webhook config
+        // 尝试获取 Webhook 日志（如果存在已配置的 Webhook）
+        const wRes = await getWebhookLogs(0, { page: 1, page_size: 10 }).catch(() => ({ data: { data: { items: [] } } }))
         webhookLogs.value = wRes.data.data?.items || []
       } catch(e) {}
     }

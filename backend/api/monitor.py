@@ -146,7 +146,7 @@ async def get_recent_alerts(
     result = await db.execute(
         select(AlertRecord)
         .where(AlertRecord.status == "active")
-        .order_by(AlertRecord.created_at.desc())
+        .order_by(AlertRecord.first_occurred.desc())
         .limit(limit)
     )
     records = result.scalars().all()

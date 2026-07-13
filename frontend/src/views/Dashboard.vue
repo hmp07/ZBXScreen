@@ -167,7 +167,7 @@
             <div class="alert-list-body" ref="alertBodyRef">
               <div class="alert-list-inner" ref="alertInnerRef" :style="{ transform: 'translateY(-' + alertOffset + 'px)' }">
                 <div v-for="a in alerts" :key="a.id" class="alert-row" :class="{ new: a.isNew }">
-                  <div class="alert-time">{{ formatAlertTime(a.created_at) }}</div>
+                  <div class="alert-time">{{ formatAlertTime(a.first_occurred) }}</div>
                   <div><span class="alert-sev" :class="a.level?.toLowerCase()">{{ sevLabel(a.level) }}</span></div>
                   <div>
                     <div class="alert-host">{{ a.host_name }}</div>
@@ -188,6 +188,7 @@ import * as echarts from 'echarts'
 import { getSummary, getHosts, getAlerts, getTopCpu, getTopMemory, getTopDisk, getTopNetworkIn, getTopNetworkOut } from '@/api/monitor'
 import { getSettings } from '@/api/settings'
 import { useLayoutStore } from '@/stores/layout'
+import { formatDateTime } from '@/utils/format'
 
 const layoutStore = useLayoutStore()
 const brandName = computed(() => layoutStore.brandTitle || 'ZBXBoard')
@@ -248,11 +249,7 @@ function sevLabel(level: string) {
   const m: Record<string,string> = { DISASTER:'灾难', HIGH:'严重', AVERAGE:'一般', WARNING:'警告', INFO:'信息', NOT_CLASSIFIED:'未分' }
   return m[level] || level
 }
-function formatAlertTime(t: string | null) {
-  if (!t) return '--:--:--'
-  const d = new Date(t)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
+function formatAlertTime(t: string | null) { return formatDateTime(t) }
 
 function tickClock() {
   const d = new Date()
@@ -301,7 +298,9 @@ async function fetchData() {
     updateTrendChart()
     // Update status pie
     updateStatusChart()
-  } catch(e) { /* silent */ }
+  } catch(e) {
+    console.error("Dashboard fetchData failed:", e);
+  }
 }
 
 function initTrendChart() {

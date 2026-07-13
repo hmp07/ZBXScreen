@@ -33,19 +33,21 @@ async def check_alerts():
         datasources = result.scalars().all()
 
         all_triggers = []
+        failed_datasource_ids = set()  # 记录不可达的数据源，跳过恢复检测
         for ds in datasources:
             try:
                 client = ZabbixClient(ds.url, ds.username, decrypt_password(ds.password_encrypted))
                 triggers = await client.get_triggers(active_only=True, min_severity=1)
-                # 附加数据源信息
                 for t in triggers:
                     t["_datasource_id"] = ds.id
                     t["_datasource_name"] = ds.name
                 all_triggers.extend(triggers)
             except ZabbixAPIError as e:
                 print(f"[ALERT] Error fetching triggers from '{ds.name}': {e}")
+                failed_datasource_ids.add(ds.id)
             except Exception as e:
                 print(f"[ALERT] Unexpected error for '{ds.name}': {e}")
+                failed_datasource_ids.add(ds.id)
 
         # 获取启用的告警规则
         rules_result = await db.execute(
@@ -53,7 +55,9 @@ async def check_alerts():
         )
         rules = rules_result.scalars().all()
 
-        # 处理触发器（使用 no_autoflush 避免 SELECT 触发待 INSERT 的 flush）
+        # 处理触发器
+        # event_id = {triggerid}_{lastchange} —— Zabbix 的 lastchange 在触发器
+        # 状态变更时更新，持续 PROBLEM 期间不变，天然保证同一问题不重复创建
         new_alerts = []
         existing_active_ids = set()
         # 先批量查询所有已存在的 active event_id
@@ -64,11 +68,16 @@ async def check_alerts():
             existing_active_ids.add(row[0])
 
         for trigger in all_triggers:
-            event_id = trigger.get("triggerid")  # 使用 triggerid 作为 event_id
-            if not event_id:
+            trigger_id = trigger.get("triggerid")
+            if not trigger_id:
                 continue
 
-            # 去重：检查是否已存在 active 状态的记录（批量查询 + set 查找）
+            # 使用 Zabbix 的 lastchange 作为时间戳标识
+            lastchange = trigger.get("lastchange", "0")
+            if not lastchange or lastchange == "0":
+                lastchange = str(int(datetime.now(timezone.utc).timestamp()))
+
+            event_id = f"{trigger_id}_{lastchange}"
             if event_id in existing_active_ids:
                 continue
 
@@ -77,14 +86,19 @@ async def check_alerts():
             if not _match_rules(trigger, rules):
                 continue
 
-            # 映射级别
             level_map = {1: "INFO", 2: "WARNING", 3: "AVERAGE", 4: "HIGH", 5: "DISASTER"}
             level = level_map.get(severity, "INFO")
 
-            # 提取主机信息
             hosts = trigger.get("hosts", [])
             host_name = hosts[0].get("host", "unknown") if hosts else "unknown"
             host_id = hosts[0].get("hostid", "") if hosts else ""
+
+            # first_occurred 使用 Zabbix 中问题实际发生时间
+            try:
+                first_ts = int(lastchange)
+                first_occurred = datetime.fromtimestamp(first_ts, tz=timezone.utc).replace(tzinfo=None)
+            except (ValueError, OSError):
+                first_occurred = datetime.now(timezone.utc).replace(tzinfo=None)
 
             record = AlertRecord(
                 event_id=event_id,
@@ -94,7 +108,8 @@ async def check_alerts():
                 level=level,
                 status="active",
                 value=str(trigger.get("value", "")),
-                first_occurred=datetime.now(timezone.utc).replace(tzinfo=None),
+                first_occurred=first_occurred,
+                datasource_id=trigger.get("_datasource_id"),
             )
             db.add(record)
             existing_active_ids.add(event_id)
@@ -102,9 +117,20 @@ async def check_alerts():
 
         try:
             await db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             await db.rollback()
-            print(f"[ALERT] IntegrityError on commit (duplicate event_id), skipped")
+            print(f"[ALERT] IntegrityError on commit, rolling back batch: {e}")
+            # 逐个重试，只跳过冲突记录
+            saved = []
+            for alert in new_alerts:
+                try:
+                    db.add(alert)
+                    await db.commit()
+                    saved.append(alert)
+                except IntegrityError:
+                    await db.rollback()
+                    print(f"[ALERT] Skipped duplicate: {alert.event_id}")
+            new_alerts = saved
 
         # 告警风暴检测
         if len(new_alerts) >= ALERT_BATCH_THRESHOLD:
@@ -124,8 +150,8 @@ async def check_alerts():
             except Exception as e:
                 print(f"[ALERT] Webhook error: {e}")
 
-        # 检测告警恢复
-        await _check_recoveries(db, datasources, all_triggers)
+        # 检测告警恢复（跳过不可达数据源的告警）
+        await _check_recoveries(db, datasources, all_triggers, failed_datasource_ids)
 
     print(f"[ALERT] Done: {len(new_alerts)} new alerts from {len(all_triggers)} triggers")
 
@@ -154,25 +180,58 @@ def _match_rules(trigger: dict, rules: list[AlertRule]) -> bool:
     return False
 
 
-async def _check_recoveries(db, datasources, active_triggers):
-    """检测告警恢复：数据库中 active 但 Zabbix 中已不存在的触发器"""
-    active_event_ids = {t.get("triggerid") for t in active_triggers}
+async def _check_recoveries(db, datasources, active_triggers, failed_datasource_ids: set = None):
+    """检测告警恢复：数据库中 active 但 Zabbix 中已不存在的触发器。
+    排除不可达数据源的告警，避免误恢复。"""
+    if failed_datasource_ids is None:
+        failed_datasource_ids = set()
+
+    # event_id = {triggerid}_{lastchange}，构建完整的 active event_id 集合
+    active_event_ids = set()
+    for t in active_triggers:
+        tid = t.get("triggerid", "")
+        lc = t.get("lastchange", "0")
+        if tid and lc and lc != "0":
+            active_event_ids.add(f"{tid}_{lc}")
 
     result = await db.execute(
         select(AlertRecord).where(AlertRecord.status == "active")
     )
     db_active = result.scalars().all()
 
-    for record in db_active:
-        if record.event_id not in active_event_ids:
-            record.status = "recovered"
-            record.recovered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    # 构建 host_id → datasource_id 映射（用于跳过不可达数据源的恢复）
+    if failed_datasource_ids:
+        print(f"[ALERT] Skipping recovery check for {len(failed_datasource_ids)} unreachable datasource(s)")
 
-            # 推送恢复事件
-            try:
-                from services.webhook_sender import send_recovery_webhook
-                await send_recovery_webhook(record)
-            except Exception as e:
-                print(f"[ALERT] Recovery webhook error: {e}")
+    for record in db_active:
+        # 跳过仍在 active 的
+        if record.event_id in active_event_ids:
+            continue
+
+        # 跳过不可达数据源的告警（数据源离线不应触发恢复）
+        if record.host_id:
+            # 检查此记录是否属于不可达的数据源
+            host_in_failed_ds = False
+            for t in active_triggers:
+                hosts = t.get("hosts", [])
+                for h in hosts:
+                    if h.get("hostid") == record.host_id:
+                        host_in_failed_ds = True
+                        break
+                if host_in_failed_ds:
+                    break
+            if not host_in_failed_ds and failed_datasource_ids:
+                # 无法确认主机属于哪个数据源，安全起见：只要有不可达数据源，跳过恢复
+                # 避免批量误恢复
+                continue
+
+        record.status = "recovered"
+        record.recovered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        try:
+            from services.webhook_sender import send_recovery_webhook
+            await send_recovery_webhook(record)
+        except Exception as e:
+            print(f"[ALERT] Recovery webhook error: {e}")
 
     await db.commit()

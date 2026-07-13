@@ -3,7 +3,9 @@ ZabbixScreen 配置管理
 从环境变量读取配置，提供默认值
 """
 import os
+import sys
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -37,6 +39,19 @@ class Settings(BaseSettings):
 
     # 数据库路径
     db_path: str = "zabbixscreen.db"
+
+    @field_validator("app_secret_key")
+    @classmethod
+    def check_secret_key_not_default(cls, v: str) -> str:
+        if v == "change-this-in-production" or v == "change-this-to-a-random-64-char-string":
+            print("=" * 60)
+            print("  SECURITY ERROR: APP_SECRET_KEY is set to the default value!")
+            print("  Set APP_SECRET_KEY environment variable to a random 64-char string.")
+            print("  Generate one with: openssl rand -base64 32")
+            print("  The application will now exit.")
+            print("=" * 60)
+            sys.exit(1)
+        return v
 
     class Config:
         env_file = ".env"

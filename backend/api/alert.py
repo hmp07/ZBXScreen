@@ -128,7 +128,7 @@ async def list_records(
     # 分页
     offset = (page - 1) * page_size
     result = await db.execute(
-        query.order_by(AlertRecord.created_at.desc()).offset(offset).limit(page_size)
+        query.order_by(AlertRecord.first_occurred.desc()).offset(offset).limit(page_size)
     )
     records = result.scalars().all()
 
@@ -292,7 +292,7 @@ async def alert_dashboard(
     recent_result = await db.execute(
         select(AlertRecord)
         .where(AlertRecord.status == "active")
-        .order_by(AlertRecord.created_at.desc())
+        .order_by(AlertRecord.first_occurred.desc())
         .limit(20)
     )
     recent_active = []

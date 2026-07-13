@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { useDatasourceStore } from "@/stores/datasource";
 import type { Datasource } from "@/api/datasource";

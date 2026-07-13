@@ -70,7 +70,6 @@ async def init_db():
         await session.commit()
 
     print("[init_db] Default data inserted (admin user + settings).")
-    print(f"[init_db] Admin password: {app_settings.default_admin_password}")
     print("[init_db] Database initialization complete.")
 
 

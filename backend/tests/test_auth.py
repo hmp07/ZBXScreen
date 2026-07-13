@@ -92,7 +92,7 @@ async def test_change_password(client: AsyncClient, test_db: AsyncSession):
     token = login_resp.json()["data"]["access_token"]
 
     # 修改密码
-    resp = await client.put(
+    resp = await client.post(
         "/api/v1/auth/password",
         json={"old_password": "test123", "new_password": "newpass456"},
         headers={"Authorization": f"Bearer {token}"},
@@ -119,7 +119,7 @@ async def test_change_password(client: AsyncClient, test_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_protected_route_without_token(client: AsyncClient):
     """无 Token 访问受保护接口"""
-    resp = await client.put(
+    resp = await client.post(
         "/api/v1/auth/password",
         json={"old_password": "x", "new_password": "y"},
     )
