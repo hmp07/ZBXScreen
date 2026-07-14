@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 # =====================================================================
 # ZBXScreen 生产环境 Docker Compose
@@ -11,9 +11,11 @@ version: '3.8'
 # 停止: docker compose down
 # 日志: docker compose logs -f
 # =====================================================================
-
 services:
   zabbixscreen:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: zabbixscreen:latest
     container_name: zabbixscreen
     ports:
