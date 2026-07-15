@@ -156,14 +156,19 @@ async def aggregate_all_datasources():
             if hid in hostid_to_groups:
                 h["groups"] = hostid_to_groups[hid]
 
-        # 通过 hostinterface.available 判断在线/离线状态
+        # 通过 hostinterface.available 判断在线/离线状态（排除已停用主机）
         offline_hostnames = set()
         online_count = 0
         offline_count = 0
+        disabled_count = 0
         for h in deduped_hosts:
             hostid = h.get("hostid", "")
-            # 使用 name 字段（优先）作为主机标识，与 all_host_metrics 的 key 保持一致
             hostname = h.get("name") or h.get("host", "")
+            # Zabbix host status: 0=启用, 1=停用
+            host_status = int(h.get("status", 0))
+            if host_status == 1:
+                disabled_count += 1
+                continue  # 停用主机不计入在线/离线统计
             is_online = all_ping_status.get(hostid, True)
             if is_online:
                 online_count += 1
@@ -173,6 +178,8 @@ async def aggregate_all_datasources():
 
         summary = {
             "total_hosts": len(deduped_hosts),
+            "enabled_hosts": len(deduped_hosts) - disabled_count,
+            "disabled_hosts": disabled_count,
             "online_hosts": online_count,
             "offline_hosts": offline_count,
             "alert_count": total_alerts,
@@ -627,11 +634,12 @@ async def _build_network_devices(
     network_host_ids = await _get_network_host_ids(datasources)
     print(f"[AGGREGATOR] Network host IDs from groups: {network_host_ids}")
 
-    # 建立 hostid → hostname 映射（仅网络设备）
+    # 建立 hostid → hostname 映射（仅网络设备，排除停用主机）
     hostid_to_name = {}
     hostid_to_host = {}
     network_online = 0
     network_offline = 0
+    network_disabled = 0
     for h in hosts:
         hostid = h.get("hostid", "")
         if hostid not in network_host_ids:
@@ -639,6 +647,10 @@ async def _build_network_devices(
         name = h.get("name") or h.get("host", "unknown")
         hostid_to_name[hostid] = name
         hostid_to_host[hostid] = h.get("host", "unknown")
+        # Zabbix host status: 0=启用, 1=停用
+        if int(h.get("status", 0)) == 1:
+            network_disabled += 1
+            continue
         # 在线状态
         if ping_status.get(hostid, True):
             network_online += 1
@@ -672,6 +684,8 @@ async def _build_network_devices(
     total_traffic = sum(x.get("total_mbps", 0) for x in port_traffic_top10)
     network_summary = {
         "total_devices": len(hostid_to_name),
+        "enabled_devices": len(hostid_to_name) - network_disabled,
+        "disabled_devices": network_disabled,
         "online_devices": network_online,
         "offline_devices": network_offline,
         "total_traffic_mbps": round(total_traffic, 2),

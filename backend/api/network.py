@@ -57,6 +57,8 @@ async def network_dashboard(
         # 使用网络设备专属汇总
         ns = net_data.get("network_summary", {})
         summary_data["total"] = ns.get("total_devices", 0)
+        summary_data["enabled"] = ns.get("enabled_devices", ns.get("total_devices", 0))
+        summary_data["disabled"] = ns.get("disabled_devices", 0)
         summary_data["online"] = ns.get("online_devices", 0)
         summary_data["offline"] = ns.get("offline_devices", 0)
         summary_data["total_traffic_mbps"] = ns.get("total_traffic_mbps", 0.0)

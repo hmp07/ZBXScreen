@@ -18,6 +18,34 @@ from services.zabbix_client import ZabbixClient, ZabbixAPIError
 router = APIRouter(prefix="/api/v1/hosts", tags=["主机监控"])
 
 
+def _enrich_host_status(h: dict) -> dict:
+    """补充计算字段：zbx_status（原始Zabbix状态）+ online_status（在线状态）"""
+    zbx_status = str(h.get("status", "0"))
+    online_status = "disabled"
+    if zbx_status != "1":
+        # 主机未停用，检查接口可用性
+        interfaces = h.get("interfaces", [])
+        if interfaces:
+            main_iface = None
+            for iface in interfaces:
+                if iface.get("main") == "1" or iface.get("main") == 1:
+                    main_iface = iface
+                    break
+            if main_iface is None:
+                main_iface = interfaces[0]
+            avail = main_iface.get("available", "0")
+            try:
+                avail = int(avail) if isinstance(avail, str) else avail
+            except (ValueError, TypeError):
+                avail = 0
+            online_status = "offline" if avail == 2 else "online"
+        else:
+            online_status = "online"  # 无接口信息默认在线
+    h["zbx_status"] = zbx_status
+    h["online_status"] = online_status
+    return h
+
+
 async def _get_cached_hosts(db: AsyncSession):
     """从缓存读取全量主机列表（scheduler 预聚合）。未命中返回 None。"""
     cache_key = "hosts_all"
@@ -80,8 +108,10 @@ async def get_host_list(
         total = len(hosts)
         start = (page - 1) * page_size
         hosts_page = hosts[start:start + page_size]
+        # 补充计算字段
+        enriched = [_enrich_host_status(h) for h in hosts_page]
         return success({
-            "items": hosts_page,
+            "items": enriched,
             "total": total,
             "page": page,
             "page_size": page_size,

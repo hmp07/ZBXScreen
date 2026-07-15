@@ -33,19 +33,50 @@
         <section class="kpi-strip">
           <div v-for="k in kpis" :key="k.key" class="kpi">
             <div class="kpi-glow"></div>
-            <div class="kpi-icon">{{ k.icon }}</div>
-            <div class="kpi-body">
-              <div class="kpi-label">{{ k.label }}</div>
-              <div class="kpi-value-row">
-                <div class="kpi-value" :data-key="k.key">{{ formatKpi(k) }}</div>
-                <div class="kpi-unit">{{ k.unit }}</div>
+            <!-- 主机总数：复合卡片（主数据 + 子数据水平分隔） -->
+            <template v-if="k.key === 'hosts'">
+              <div class="kpi-body">
+                <div class="kpi-label">{{ k.label }}</div>
+                <div class="kpi-split">
+                  <div class="kpi-main">
+                    <div class="kpi-value" data-key="hosts">{{ formatKpi(k) }}</div>
+                    <div class="kpi-unit">{{ k.unit }}</div>
+                  </div>
+                  <div class="kpi-divider"></div>
+                  <div class="kpi-subs">
+                    <div class="kpi-sub-label">启用</div>
+                    <div class="kpi-sub">
+                      <span class="kpi-sub-dot enabled"></span>
+                      <span class="kpi-sub-val">{{ (summary.enabled_hosts || 0).toLocaleString() }}</span>
+                      <span class="kpi-sub-unit">台</span>
+                    </div>
+                    <div class="kpi-sub-gap"></div>
+                    <div class="kpi-sub-label">停用</div>
+                    <div class="kpi-sub">
+                      <span class="kpi-sub-dot disabled"></span>
+                      <span class="kpi-sub-val">{{ (summary.disabled_hosts || 0).toLocaleString() }}</span>
+                      <span class="kpi-sub-unit">台</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="kpi-delta" :class="k.trend">
-                <span>{{ k.trend === 'up' ? '▲' : k.trend === 'down' ? '▼' : '—' }}</span>
-                <span>{{ Math.abs(k.delta) }}{{ k.key === 'cpu' || k.key === 'memory' ? 'pp' : '' }}</span>
-                <span style="color:var(--text-3);font-family:var(--font-cn)">较 1h 前</span>
+            </template>
+            <!-- 其他卡片：标准布局 -->
+            <template v-else>
+              <div class="kpi-icon">{{ k.icon }}</div>
+              <div class="kpi-body">
+                <div class="kpi-label">{{ k.label }}</div>
+                <div class="kpi-value-row">
+                  <div class="kpi-value">{{ formatKpi(k) }}</div>
+                  <div class="kpi-unit">{{ k.unit }}</div>
+                </div>
+                <div class="kpi-delta" :class="k.trend">
+                  <span>{{ k.trend === 'up' ? '▲' : k.trend === 'down' ? '▼' : '—' }}</span>
+                  <span>{{ Math.abs(k.delta) }}{{ k.key === 'cpu' ? 'pp' : '' }}</span>
+                  <span style="color:var(--text-3);font-family:var(--font-cn)">较 1h 前</span>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </section>
 
@@ -211,7 +242,7 @@ let trendChart: echarts.ECharts | null = null
 let statusChart: echarts.ECharts | null = null
 let clockTimer: number, dataTimer: number, alertScrollTimer: number
 
-const summary = ref({ total_hosts: 0, online_hosts: 0, offline_hosts: 0, alert_count: 0 })
+const summary = ref({ total_hosts: 0, enabled_hosts: 0, disabled_hosts: 0, online_hosts: 0, offline_hosts: 0, alert_count: 0 })
 const hosts = ref<any[]>([])
 const alerts = ref<any[]>([])
 const topCpu = ref<{ host: string; value: number }[]>([])
@@ -233,16 +264,16 @@ const memAvg = computed(() => {
 })
 
 const kpis = computed(() => [
-  { key: 'hosts' as const, label: '在线主机', unit: '台', icon: '🖥️', value: summary.value.online_hosts, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
+  { key: 'hosts' as const, label: '主机总数', unit: '台', icon: '🖥️', value: summary.value.total_hosts, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
+  { key: 'online' as const, label: '在线主机', unit: '台', icon: '✅', value: summary.value.online_hosts, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down', color: '#52c41a' },
+  { key: 'offline' as const, label: '离线主机', unit: '台', icon: '🔴', value: summary.value.offline_hosts, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down', color: '#f5222d' },
   { key: 'alerts' as const, label: '告警总数', unit: '条', icon: '🚨', value: summary.value.alert_count, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
   { key: 'cpu' as const, label: 'CPU 均值', unit: '%', icon: '⚙️', value: cpuAvg.value, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
-  { key: 'memory' as const, label: '内存均值', unit: '%', icon: '💾', value: memAvg.value, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
-  { key: 'recov' as const, label: '今日恢复', unit: '条', icon: '✅', value: 0, delta: 0, trend: 'flat' as 'flat' | 'up' | 'down' },
 ])
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function formatKpi(k: any) {
-  if (k.key === 'cpu' || k.key === 'memory') return k.value?.toFixed(1) ?? '0.0'
+  if (k.key === 'cpu') return k.value?.toFixed(1) ?? '0.0'
   return Math.round(k.value || 0).toLocaleString()
 }
 function sevLabel(level: string) {
@@ -348,9 +379,10 @@ function initStatusChart() {
 
 function updateStatusChart() {
   if (!statusChart) return
-  const problem = summary.value.alert_count
-  const offline = summary.value.offline_hosts
-  const healthy = Math.max(0, summary.value.total_hosts - problem - offline)
+  const disabled = summary.value.disabled_hosts || 0
+  const offline = summary.value.offline_hosts || 0
+  const hasAlert = summary.value.alert_count || 0
+  const healthy = Math.max(0, summary.value.online_hosts - hasAlert)
   statusChart.setOption({
     backgroundColor: 'transparent',
     tooltip: { trigger: 'item', backgroundColor: 'rgba(8,24,48,0.95)', borderColor: '#00e5ff', textStyle: { color: '#e6f7ff', fontSize: 12 } },
@@ -365,8 +397,9 @@ function updateStatusChart() {
       itemStyle: { borderColor: '#050d1a', borderWidth: 2 },
       data: [
         { name: '健康', value: healthy, itemStyle: { color: '#52c41a' } },
-        { name: '告警', value: problem, itemStyle: { color: '#f5222d' } },
-        { name: '离线', value: offline, itemStyle: { color: '#6b89a3' } },
+        { name: '告警', value: hasAlert, itemStyle: { color: '#f5222d' } },
+        { name: '离线', value: offline, itemStyle: { color: '#fa8c16' } },
+        { name: '停用', value: disabled, itemStyle: { color: '#6b89a3' } },
       ]
     }]
   })
@@ -467,6 +500,19 @@ onUnmounted(() => {
 .theme-dot[data-color="green"]   { background: #52c41a; color: #52c41a; }
 .theme-dot[data-color="orange"]  { background: #ff7a45; color: #ff7a45; }
 .kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.73vw; padding: 0 0.31vw; }
+/* 主机总数复合卡片 */
+.kpi-split { display: flex; align-items: center; gap: 0.5vw; }
+.kpi-main { flex: 1; display: flex; align-items: baseline; gap: 6px; }
+.kpi-divider { width: 1px; height: 3.2vh; background: rgba(0,229,255,0.15); }
+.kpi-subs { display: flex; flex-direction: column; }
+.kpi-sub-label { font-size: 11px; color: var(--text-3); letter-spacing: 1px; margin-bottom: 1px; }
+.kpi-sub-gap { height: 4px; }
+.kpi-sub { display: flex; align-items: baseline; gap: 6px; }
+.kpi-sub-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+.kpi-sub-dot.enabled { background: #52c41a; box-shadow: 0 0 10px rgba(82,196,26,0.5); }
+.kpi-sub-dot.disabled { background: #6b89a3; }
+.kpi-sub-val { font-family: var(--font-num); font-size: 34px; font-weight: 900; color: var(--primary); line-height: 1.1; }
+.kpi-sub-unit { font-size: 12px; color: var(--text-3); }
 .main-area { display: grid; grid-template-columns: 3fr 5fr 3fr; gap: 0.625vw; min-height: 0; }
 .col-stack { position: relative; display: grid; grid-template-rows: 1fr 1fr; gap: 0.625vw; min-height: 0; }
 .col-stack > .panel { min-height: 0; }

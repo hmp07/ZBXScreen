@@ -192,7 +192,7 @@ let utilChart: echarts.ECharts | null = null
 let crcChart: echarts.ECharts | null = null
 let clockTimer: number, dataTimer: number, alertScrollTimer: number
 
-const summary = ref({ total: 0, online: 0, offline: 0, alert_devices: 0, total_traffic_mbps: 0 })
+const summary = ref({ total: 0, enabled: 0, disabled: 0, online: 0, offline: 0, alert_devices: 0, total_traffic_mbps: 0 })
 const bySeverity = ref<Record<string, number>>({})
 const portTraffic = ref<any[]>([])
 const portUtil = ref<any[]>([])
@@ -206,8 +206,8 @@ const kpis = computed(() => [
   { key: 'total', label: '设备总数', unit: '台', icon: '🖥️', value: summary.value.total, color: '#00e5ff', alert: false, display: summary.value.total.toLocaleString() },
   { key: 'online', label: '在线设备', unit: '台', icon: '✅', value: summary.value.online, color: '#52c41a', alert: false, display: summary.value.online.toLocaleString() },
   { key: 'offline', label: '离线设备', unit: '台', icon: '🔴', value: summary.value.offline, color: summary.value.offline > 0 ? '#f5222d' : '#6b89a3', alert: summary.value.offline > 0, display: summary.value.offline.toLocaleString() },
+  { key: 'disabled', label: '停用设备', unit: '台', icon: '⏸️', value: summary.value.disabled || 0, color: '#6b89a3', alert: false, display: (summary.value.disabled || 0).toLocaleString() },
   { key: 'alerts', label: '告警设备', unit: '台', icon: '🚨', value: summary.value.alert_devices, color: summary.value.alert_devices > 0 ? '#faad14' : '#00e5ff', alert: summary.value.alert_devices > 0, display: summary.value.alert_devices.toLocaleString() },
-  { key: 'traffic', label: '端口总流量', unit: 'Mbps', icon: '📊', value: summary.value.total_traffic_mbps, color: '#00e5ff', alert: false, display: summary.value.total_traffic_mbps.toFixed(1) },
 ])
 
 function pad(n: number) { return String(n).padStart(2,'0') }

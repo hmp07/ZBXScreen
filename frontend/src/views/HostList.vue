@@ -15,9 +15,9 @@
       </el-table-column>
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.status === '0' ? 'success' : 'danger'" size="small">
-            {{ row.status === '0' ? '在线' : '离线' }}
-          </el-tag>
+          <el-tag v-if="row.zbx_status === '1'" type="info" size="small">停用</el-tag>
+          <el-tag v-else-if="row.online_status === 'online'" type="success" size="small">在线</el-tag>
+          <el-tag v-else type="danger" size="small">离线</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="数据源" width="100">
