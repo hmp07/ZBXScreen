@@ -8,7 +8,7 @@ from config import settings
 
 app = FastAPI(
     title="ZabbixScreen",
-    version="1.0.0",
+    version="1.2.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url=None,
 )
@@ -29,10 +29,46 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "version": "1.0.0",
+        "version": "1.2.0",
         "services": {
             "database": "ok",
         },
+    }
+
+
+@app.get("/api/v1/scheduler-status")
+async def scheduler_status():
+    """
+    Scheduler 健康检查（无需认证）。
+    读取 monitor_cache 表最新时间戳，超过 90 秒未更新则标记 degraded。
+    """
+    from datetime import datetime, timezone, timedelta
+    from database import AsyncSessionLocal
+    from sqlalchemy import select, func
+    from models.monitor_cache import MonitorCache
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(func.max(MonitorCache.created_at))
+            )
+            latest = result.scalar()
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    fresh = latest is not None and (now - latest.replace(tzinfo=None)).total_seconds() < 90
+
+    return {
+        "status": "healthy" if fresh else "degraded",
+        "last_cache_at": latest.isoformat() if latest else None,
+        "max_age_seconds": (now - latest.replace(tzinfo=None)).total_seconds() if latest else None,
+        "threshold_seconds": 90,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

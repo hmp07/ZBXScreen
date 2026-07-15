@@ -83,7 +83,7 @@ Standard Vue 3 SPA: `views/` → `components/` → `stores/` (Pinia) → `api/` 
 
 Single container runs two processes via **supervisor**:
 - Nginx :80 — serves Vue static files + reverse proxies `/api/*` to uvicorn
-- uvicorn :5001 (internal only) — FastAPI with 2 workers
+- uvicorn :5001 (internal only) — FastAPI with 1 worker
 
 This approach is chosen over multi-container for simplicity — the app is lightweight enough that process separation within one container is sufficient.
 
@@ -165,3 +165,9 @@ Dashboard colors (from design spec):
 - Card background: `#1a2a4a`
 - Primary/accent: `#00d4ff` (tech blue)
 - Target resolution: 1920×1080, responsive with `vw/vh` + `calc()`
+
+## Important Constraints
+
+- **HTTP methods**: All API endpoints use only GET/POST. PUT/DELETE are intentionally avoided to bypass security device (WAF) blocking in customer environments. New endpoints must follow this convention — do not introduce PUT or DELETE.
+- **APP_SECRET_KEY**: Changing `APP_SECRET_KEY` will invalidate all stored Zabbix datasource passwords (AES-128-CBC key is derived from it). Before changing the key, re-save all datasource credentials through the Web UI, or manually re-encrypt them using `utils/crypto.py` with the new key.
+- **scheduler health**: The scheduler runs as an independent process. `/api/v1/scheduler-status` checks monitor_cache freshness; if cache is &gt;90s stale, the scheduler should be investigated even though `/api/v1/health` may still report healthy.

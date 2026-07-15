@@ -5,7 +5,7 @@
         <!-- Top Bar -->
         <div class="topbar">
           <div class="breadcrumb">
-            <a class="home" @click="$router.push('/dashboard')"><span class="home-logo">{{ layoutStore.brandTitle?.charAt(0) || 'Z' }}</span><span class="home-text">{{ layoutStore.brandTitle || 'ZBXBoard' }}</span></a>
+            <a class="home" @click="$router.push('/dashboard')"><span class="home-logo">{{ layoutStore.brandTitle?.charAt(0) || 'Z' }}</span><span class="home-text">{{ layoutStore.brandTitle || 'ZBXScreen' }}</span></a>
             <span class="sep">/</span><a @click="$router.push('/hosts')">监控</a>
             <span class="sep">/</span><a @click="$router.push('/hosts')">主机管理</a>
             <span class="sep">/</span><span class="current">{{ host?.host || host?.name || '...' }}</span>

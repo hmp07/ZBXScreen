@@ -3,7 +3,7 @@
     <div class="page-header"><h2>系统设置</h2></div>
     <el-form :model="form" label-width="140px" style="max-width:600px" v-loading="loading">
       <el-form-item label="系统标题">
-        <el-input v-model="form.system_title" placeholder="如：ZBXBoard" />
+        <el-input v-model="form.system_title" placeholder="如：ZBXScreen" />
       </el-form-item>
       <el-form-item label="副标题">
         <el-input v-model="form.system_subtitle" placeholder="如：ZABBIX · VISUALIZATION（留空则不显示）" />

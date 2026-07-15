@@ -49,3 +49,4 @@ monitor.html
 htmlcov/
 .nyc_output/
 coverage/
+Release/

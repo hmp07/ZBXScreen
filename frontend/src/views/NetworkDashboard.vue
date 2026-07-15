@@ -160,7 +160,7 @@ import { useLayoutStore } from '@/stores/layout'
 import { formatDateTime } from '@/utils/format'
 
 const layoutStore = useLayoutStore()
-const brandName = computed(() => layoutStore.brandTitle || 'ZBXBoard')
+const brandName = computed(() => layoutStore.brandTitle || 'ZBXScreen')
 const brandSub = ref('NETWORK · VISUALIZATION')
 const logoLetter = computed(() => layoutStore.brandTitle?.charAt(0) || 'Z')
 const logoUrl = ref('')
