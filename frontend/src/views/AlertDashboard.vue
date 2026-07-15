@@ -59,7 +59,7 @@
           <div class="panel col-2">
             <span class="corner-tr"></span><span class="corner-bl"></span>
             <div class="panel-title">
-              <div class="panel-title-text">近 24h 告警趋势 <span class="panel-title-en">24H TREND</span></div>
+              <div class="panel-title-text">24小时告警趋势 <span class="panel-title-en">24H TREND</span></div>
             </div>
             <div class="panel-body no-pad"><div ref="trendRef" class="chart"></div></div>
           </div>
@@ -253,6 +253,7 @@ function updateTrendChart() {
     yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#6b89a3', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(0,229,255,0.08)' } } },
     series: levels.map(l => ({
       name: LEVEL_LABELS[l], type: 'line', smooth: true, symbol: 'none',
+      color: LEVEL_COLORS[l],
       data: trend24h.value.map((t: any) => t[l] || 0),
       lineStyle: { width: 1.6, color: LEVEL_COLORS[l] },
       areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:LEVEL_COLORS[l]+'66'},{offset:1,color:'transparent'}]) },

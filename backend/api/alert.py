@@ -237,31 +237,47 @@ async def alert_dashboard(
     for lv in ["INFO", "WARNING", "AVERAGE", "HIGH", "DISASTER"]:
         by_level.setdefault(lv, 0)
 
-    # ── 3. 近 24h 趋势（按小时 × 级别，排除 INFO）──
-    trend_result = await db.execute(
-        select(
-            func.strftime("%H", AlertRecord.first_occurred).label("hour"),
-            AlertRecord.level,
-            func.count(AlertRecord.id),
-        ).where(
-            AlertRecord.first_occurred >= yesterday_24h,
+    # ── 3. 24小时告警趋势（动态时间轴，以当前 CST 时间为基点倒推）──
+    # 当前 CST 时间
+    now_cst = now + timedelta(hours=8)
+    # 24小时前（UTC边界），用于数据库查询
+    cutoff_utc = now - timedelta(hours=24)
+    cutoff_cst = now_cst - timedelta(hours=24)
+
+    # 查询：拉取 UTC 窗口内所有告警，Python 中做 CST 分组
+    trend_rows = await db.execute(
+        select(AlertRecord.first_occurred, AlertRecord.level)
+        .where(
+            AlertRecord.first_occurred >= cutoff_utc,
             AlertRecord.level != "INFO",
-        ).group_by("hour", AlertRecord.level).order_by("hour")
+        )
     )
-    trend_map = {}
-    for row in trend_result.all():
-        hour, level, cnt = row[0], row[1], row[2]
-        if hour not in trend_map:
-            trend_map[hour] = {"hour": hour, "WARNING": 0, "AVERAGE": 0, "HIGH": 0, "DISASTER": 0}
-        trend_map[hour][level] = cnt
-    # 填充缺失的小时
+    # 在 Python 中按 CST 小时分组计数
+    trend_map = {}  # {hour_str: {level: count}}
+    for row in trend_rows.all():
+        fo_utc = row[0]  # first_occurred (naive UTC)
+        level = row[1]
+        fo_cst = fo_utc + timedelta(hours=8)
+        hour_str = fo_cst.strftime("%H:00")
+        if hour_str not in trend_map:
+            trend_map[hour_str] = {"hour": hour_str, "WARNING": 0, "AVERAGE": 0, "HIGH": 0, "DISASTER": 0}
+        trend_map[hour_str][level] += 1
+
+    # 构建动态 24 小时轴：从 cutoff_cst 的下一个整点到 now_cst 的当前小时
+    start_hour = cutoff_cst.replace(minute=0, second=0, microsecond=0)
+    if cutoff_cst.minute > 0 or cutoff_cst.second > 0:
+        start_hour += timedelta(hours=1)
+    end_hour = now_cst.replace(minute=0, second=0, microsecond=0)
+
     trend_24h = []
-    for h in range(24):
-        hour_str = f"{h:02d}"
+    cursor = start_hour
+    while cursor <= end_hour:
+        hour_str = cursor.strftime("%H:00")
         if hour_str in trend_map:
             trend_24h.append(trend_map[hour_str])
         else:
-            trend_24h.append({"hour": f"{h:02d}:00", "WARNING": 0, "AVERAGE": 0, "HIGH": 0, "DISASTER": 0})
+            trend_24h.append({"hour": hour_str, "WARNING": 0, "AVERAGE": 0, "HIGH": 0, "DISASTER": 0})
+        cursor += timedelta(hours=1)
 
     # ── 4. 主机告警 TOP 10 ──
     host_result = await db.execute(
