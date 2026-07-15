@@ -54,9 +54,11 @@ async def scheduler_status():
             )
             latest = result.scalar()
     except Exception as e:
+        import traceback
+        print(f"[scheduler-status] Error: {e}\n{traceback.format_exc()}")
         return {
             "status": "error",
-            "message": str(e),
+            "message": "Unable to check scheduler status",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
