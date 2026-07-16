@@ -116,9 +116,21 @@ async def itop_auto_login(
 </body>
 </html>""")
 
-    action = f"/integrations/itop/pages/UI.php"
-    username = "admin"
-    password = "admin"
+    # 读取 iTop 凭据
+    result = await db.execute(
+        select(Settings).where(Settings.key == "ITOP_USERNAME")
+    )
+    username_row = result.scalar_one_or_none()
+    username = username_row.value if username_row else "admin"
+
+    result = await db.execute(
+        select(Settings).where(Settings.key == "ITOP_PASSWORD")
+    )
+    password_row = result.scalar_one_or_none()
+    password = password_row.value if password_row else "admin"
+
+    # 直接 POST 到 iTop 服务器（不经过代理，避免需要更新 nginx 配置）
+    action = f"{itop_url.rstrip('/')}/pages/UI.php"
 
     return _build_login_html(
         title="iTop",
@@ -126,6 +138,6 @@ async def itop_auto_login(
         action=html.escape(action, quote=True),
         username=html.escape(username, quote=True),
         password=html.escape(password, quote=True),
-        redirect=f"/integrations/itop{html.escape(redirect, quote=True)}",
+        redirect=f"{itop_url.rstrip('/')}{html.escape(redirect, quote=True)}",
         extra_fields='<input type="hidden" name="login_mode" value="form">',
     )

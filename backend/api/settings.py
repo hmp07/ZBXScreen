@@ -27,6 +27,8 @@ class SettingsUpdate(BaseModel):
     # 运维集成
     zabbix_frontend_url: str | None = None
     itop_url: str | None = None
+    itop_username: str | None = None
+    itop_password: str | None = None
     itop_incident_template: str | None = None
 
 
@@ -81,6 +83,8 @@ async def update_settings(
         "TZ": req.tz,
         "ZABBIX_FRONTEND_URL": req.zabbix_frontend_url,
         "ITOP_URL": req.itop_url,
+        "ITOP_USERNAME": req.itop_username,
+        "ITOP_PASSWORD": req.itop_password,
         "ITOP_INCIDENT_TEMPLATE": req.itop_incident_template,
     }
 

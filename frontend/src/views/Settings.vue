@@ -40,6 +40,12 @@
       <el-form-item label="iTop 地址">
         <el-input v-model="form.itop_url" placeholder="如：http://itop.example.com" />
       </el-form-item>
+      <el-form-item label="iTop 用户名">
+        <el-input v-model="form.itop_username" placeholder="iTop 登录用户名" />
+      </el-form-item>
+      <el-form-item label="iTop 密码">
+        <el-input v-model="form.itop_password" type="password" placeholder="iTop 登录密码" show-password />
+      </el-form-item>
       <el-form-item label="iTop 工单模板">
         <el-input v-model="form.itop_incident_template" type="textarea" :rows="2"
           placeholder="{itop_url}/pages/exec.php/exec?exec_module=itop-incident-create&default_values[attr_title]={trigger_name}" />
@@ -74,6 +80,8 @@ const form = reactive({
   tz: "Asia/Shanghai",
   zabbix_frontend_url: "",
   itop_url: "",
+  itop_username: "",
+  itop_password: "",
   itop_incident_template: "",
 });
 
@@ -91,6 +99,8 @@ onMounted(async () => {
     if (d.TZ) form.tz = d.TZ;
     if (d.ZABBIX_FRONTEND_URL) form.zabbix_frontend_url = d.ZABBIX_FRONTEND_URL;
     if (d.ITOP_URL) form.itop_url = d.ITOP_URL;
+    if (d.ITOP_USERNAME) form.itop_username = d.ITOP_USERNAME;
+    if (d.ITOP_PASSWORD) form.itop_password = d.ITOP_PASSWORD;
     if (d.ITOP_INCIDENT_TEMPLATE) form.itop_incident_template = d.ITOP_INCIDENT_TEMPLATE;
   } finally {
     loading.value = false;
