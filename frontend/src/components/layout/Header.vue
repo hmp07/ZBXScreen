@@ -43,10 +43,9 @@ onMounted(async () => {
 });
 
 function handleToolCommand(cmd: string) {
-  if (cmd === "zabbix" && zabbixUrl.value) {
-    window.open(zabbixUrl.value, "_blank");
-  } else if (cmd === "itop" && itopUrl.value) {
-    window.open(itopUrl.value, "_blank");
+  const url = cmd === "zabbix" ? zabbixUrl.value : cmd === "itop" ? itopUrl.value : "";
+  if (url && /^https?:\/\//i.test(url)) {
+    window.open(url, "_blank");
   }
 }
 

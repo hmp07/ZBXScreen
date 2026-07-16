@@ -69,7 +69,7 @@ function goDetail(row: any) {
 function goZabbix(row: any) {
   if (zabbixUrl.value && row.host_id) {
     const url = `${zabbixUrl.value}/zabbix.php?action=host.edit&hostid=${row.host_id}`;
-    window.open(url, "_blank");
+    if (/^https?:\/\//i.test(url)) window.open(url, "_blank");
   }
 }
 function goItop(row: any) {
@@ -79,7 +79,7 @@ function goItop(row: any) {
       host_id: row.host_id || "",
       trigger_name: row.trigger_name || "",
     });
-    window.open(url, "_blank");
+    if (/^https?:\/\//i.test(url)) window.open(url, "_blank");
   }
 }
 </script>

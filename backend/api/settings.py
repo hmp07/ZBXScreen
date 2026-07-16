@@ -61,6 +61,16 @@ async def update_settings(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    # 校验集成 URL 仅允许 http/https
+    import re
+    for field_name in ["zabbix_frontend_url", "itop_url"]:
+        url = getattr(req, field_name, None)
+        if url and not re.match(r"^https?://", url):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": 1001, "message": f"{field_name} 必须以 http:// 或 https:// 开头"},
+            )
+
     mapping = {
         "SYSTEM_TITLE": req.system_title,
         "SYSTEM_SUBTITLE": req.system_subtitle,
