@@ -24,10 +24,7 @@ LOGIN_PAGE_TEMPLATE = """<!DOCTYPE html>
   <div style="font-size:14px;color:#6b89a3">{subtitle}</div>
 </div>
 <form id="f" action="{action}" method="POST">
-  <input type="hidden" name="name" value="{username}">
-  <input type="hidden" name="password" value="{password}">
-  <input type="hidden" name="enter" value="Sign in">
-  {extra_fields}
+  {fields}
 </form>
 <script>
 document.getElementById("f").submit();
@@ -41,19 +38,15 @@ def _build_login_html(
     title: str,
     subtitle: str,
     action: str,
-    username: str,
-    password: str,
+    fields: str,
     redirect: str = "/integrations/zabbix/zabbix.php?action=dashboard.view",
-    extra_fields: str = "",
 ) -> str:
     return LOGIN_PAGE_TEMPLATE.format(
         title=title,
         subtitle=subtitle,
         action=action,
-        username=username,
-        password=password,
+        fields=fields,
         redirect=redirect,
-        extra_fields=extra_fields,
     )
 
 
@@ -81,8 +74,9 @@ async def zabbix_auto_login(
         title="Zabbix",
         subtitle="正在自动登录 Zabbix 监控系统...",
         action=html.escape(action, quote=True),
-        username=html.escape(ds.username, quote=True),
-        password=html.escape(password, quote=True),
+        fields=f'''<input type="hidden" name="name" value="{html.escape(ds.username, quote=True)}">
+  <input type="hidden" name="password" value="{html.escape(password, quote=True)}">
+  <input type="hidden" name="enter" value="Sign in">''',
         redirect=f"/integrations/zabbix{html.escape(redirect, quote=True)}",
     )
 
@@ -136,8 +130,9 @@ async def itop_auto_login(
         title="iTop",
         subtitle="正在自动登录 iTop ITSM 系统...",
         action=html.escape(action, quote=True),
-        username=html.escape(username, quote=True),
-        password=html.escape(password, quote=True),
+        fields=f'''<input type="hidden" name="auth_user" value="{html.escape(username, quote=True)}">
+  <input type="hidden" name="auth_pwd" value="{html.escape(password, quote=True)}">
+  <input type="hidden" name="login_mode" value="form">
+  <input type="hidden" name="loginop" value="login">''',
         redirect=html.escape(f"{itop_url.rstrip('/')}{redirect}", quote=True),
-        extra_fields='<input type="hidden" name="login_mode" value="form">',
     )
