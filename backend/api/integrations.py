@@ -138,6 +138,6 @@ async def itop_auto_login(
         action=html.escape(action, quote=True),
         username=html.escape(username, quote=True),
         password=html.escape(password, quote=True),
-        redirect=f"{itop_url.rstrip('/')}{html.escape(redirect, quote=True)}",
+        redirect=html.escape(f"{itop_url.rstrip('/')}{redirect}", quote=True),
         extra_fields='<input type="hidden" name="login_mode" value="form">',
     )
