@@ -5,6 +5,7 @@
   <div class="app-layout" :class="{ fullscreen: layoutStore.isFullscreen }">
     <Sidebar v-if="!layoutStore.isFullscreen" />
     <div class="main-area">
+      <Header v-if="!layoutStore.isFullscreen" />
       <div class="content">
         <router-view />
       </div>
@@ -44,6 +45,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Sidebar from "./Sidebar.vue";
+import Header from "./Header.vue";
 import { useLayoutStore } from "@/stores/layout";
 import axios from "axios";
 
