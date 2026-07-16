@@ -24,6 +24,10 @@ class SettingsUpdate(BaseModel):
     data_retention_days: int | None = None
     theme: str | None = None
     tz: str | None = None
+    # 运维集成
+    zabbix_frontend_url: str | None = None
+    itop_url: str | None = None
+    itop_incident_template: str | None = None
 
 
 @router.get("")
@@ -65,6 +69,9 @@ async def update_settings(
         "DATA_RETENTION_DAYS": str(req.data_retention_days) if req.data_retention_days else None,
         "THEME": req.theme,
         "TZ": req.tz,
+        "ZABBIX_FRONTEND_URL": req.zabbix_frontend_url,
+        "ITOP_URL": req.itop_url,
+        "ITOP_INCIDENT_TEMPLATE": req.itop_incident_template,
     }
 
     for key, value in mapping.items():

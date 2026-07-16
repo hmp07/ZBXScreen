@@ -1,6 +1,18 @@
 <template>
   <div class="header">
-    <div class="header-spacer"></div>
+    <div class="header-left">
+      <el-dropdown trigger="click" @command="handleToolCommand">
+        <el-button text class="tools-btn">
+          运维工具 <span style="font-size:10px;margin-left:2px">▼</span>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="zabbix">打开 Zabbix</el-dropdown-item>
+            <el-dropdown-item command="itop">打开 iTop</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
     <div class="header-right">
       <span class="user-info">{{ authStore.username }}</span>
       <el-button text @click="handleLogout" style="color: var(--text-secondary)">
@@ -11,11 +23,32 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { getIntegrationSettings } from "@/api/integrations";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const zabbixUrl = ref("");
+const itopUrl = ref("");
+
+onMounted(async () => {
+  try {
+    const r = await getIntegrationSettings();
+    const d = r.data.data;
+    if (d.ZABBIX_FRONTEND_URL) zabbixUrl.value = d.ZABBIX_FRONTEND_URL;
+    if (d.ITOP_URL) itopUrl.value = d.ITOP_URL;
+  } catch { /* silent */ }
+});
+
+function handleToolCommand(cmd: string) {
+  if (cmd === "zabbix" && zabbixUrl.value) {
+    window.open(zabbixUrl.value, "_blank");
+  } else if (cmd === "itop" && itopUrl.value) {
+    window.open(itopUrl.value, "_blank");
+  }
+}
 
 function handleLogout() {
   authStore.logout();
@@ -35,9 +68,16 @@ function handleLogout() {
   padding: 0 20px;
 }
 
-.header-spacer {
+.header-left {
   flex: 1;
 }
+
+.tools-btn {
+  color: var(--primary);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.tools-btn:hover { color: #7be8ff; }
 
 .header-right {
   display: flex;

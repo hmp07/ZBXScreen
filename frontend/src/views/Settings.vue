@@ -32,6 +32,22 @@
       <el-form-item label="时区">
         <el-select v-model="form.tz"><el-option value="Asia/Shanghai" label="Asia/Shanghai" /><el-option value="UTC" label="UTC" /></el-select>
       </el-form-item>
+
+      <el-divider content-position="left">运维集成</el-divider>
+      <el-form-item label="Zabbix 前端地址">
+        <el-input v-model="form.zabbix_frontend_url" placeholder="如：http://zabbix.example.com" />
+      </el-form-item>
+      <el-form-item label="iTop 地址">
+        <el-input v-model="form.itop_url" placeholder="如：http://itop.example.com" />
+      </el-form-item>
+      <el-form-item label="iTop 工单模板">
+        <el-input v-model="form.itop_incident_template" type="textarea" :rows="2"
+          placeholder="{itop_url}/pages/exec.php/exec?exec_module=itop-incident-create&default_values[attr_title]={trigger_name}" />
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+          可用变量：<code>{itop_url}</code> <code>{host_name}</code> <code>{host_id}</code> <code>{trigger_name}</code>
+        </div>
+      </el-form-item>
+
       <el-form-item>
         <el-button type="primary" @click="saveSettings">保存设置</el-button>
       </el-form-item>
@@ -56,6 +72,9 @@ const form = reactive({
   data_retention_days: 30,
   theme: "dark",
   tz: "Asia/Shanghai",
+  zabbix_frontend_url: "",
+  itop_url: "",
+  itop_incident_template: "",
 });
 
 onMounted(async () => {
@@ -70,6 +89,9 @@ onMounted(async () => {
     if (d.DATA_RETENTION_DAYS) form.data_retention_days = parseInt(d.DATA_RETENTION_DAYS);
     if (d.THEME) form.theme = d.THEME;
     if (d.TZ) form.tz = d.TZ;
+    if (d.ZABBIX_FRONTEND_URL) form.zabbix_frontend_url = d.ZABBIX_FRONTEND_URL;
+    if (d.ITOP_URL) form.itop_url = d.ITOP_URL;
+    if (d.ITOP_INCIDENT_TEMPLATE) form.itop_incident_template = d.ITOP_INCIDENT_TEMPLATE;
   } finally {
     loading.value = false;
   }
