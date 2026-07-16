@@ -1,6 +1,7 @@
 """
 运维集成 API — Zabbix / iTop 自动登录桥接页
 """
+import html
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
@@ -69,14 +70,14 @@ async def zabbix_auto_login(
 
     password = decrypt_password(ds.password_encrypted)
     # redirect 路径附加到反代根路径后
-    action = f"/integrations/zabbix/zabbix.php?action=login&request={redirect}"
+    action = f"/integrations/zabbix/zabbix.php?action=login&request={html.escape(redirect, quote=True)}"
 
     return _build_login_html(
         title="Zabbix",
         subtitle="正在自动登录 Zabbix 监控系统...",
-        action=action,
-        username=ds.username,
-        password=password,
+        action=html.escape(action, quote=True),
+        username=html.escape(ds.username, quote=True),
+        password=html.escape(password, quote=True),
     )
 
 
@@ -113,13 +114,13 @@ async def itop_auto_login(
         if len(parts) > 1:
             password = parts[1]
 
-    action = f"/integrations/itop/pages/UI.php?redirect={redirect}"
+    action = f"/integrations/itop/pages/UI.php?redirect={html.escape(redirect, quote=True)}"
 
     return _build_login_html(
         title="iTop",
         subtitle="正在自动登录 iTop ITSM 系统...",
-        action=action,
-        username=username,
-        password=password,
+        action=html.escape(action, quote=True),
+        username=html.escape(username, quote=True),
+        password=html.escape(password, quote=True),
         extra_fields='<input type="hidden" name="login_mode" value="form">',
     )
