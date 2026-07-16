@@ -105,22 +105,20 @@ async def itop_auto_login(
     itop_url = row.value if row else ""
 
     if not itop_url:
-        raise HTTPException(status_code=404, detail="未配置 iTop 地址")
+        return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>iTop 未配置</title></head>
+<body style="background:#0d1b2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+<div style="text-align:center;color:#e6f7ff;font-family:sans-serif">
+  <div style="font-size:24px;margin-bottom:16px">iTop 未配置</div>
+  <div style="font-size:14px;color:#6b89a3">请在 系统设置→运维集成 中配置 iTop 地址</div>
+</div>
+</body>
+</html>""")
 
-    # iTop 默认使用 admin/admin 或从 Settings 读取的凭据
-    result = await db.execute(
-        select(Settings).where(Settings.key == "ITOP_CREDENTIALS")
-    )
-    creds_row = result.scalar_one_or_none()
+    action = f"/integrations/itop/pages/UI.php"
     username = "admin"
     password = "admin"
-    if creds_row and creds_row.value:
-        parts = creds_row.value.split(":", 1)
-        username = parts[0]
-        if len(parts) > 1:
-            password = parts[1]
-
-    action = f"/integrations/itop/pages/UI.php?redirect={html.escape(redirect, quote=True)}"
 
     return _build_login_html(
         title="iTop",
@@ -128,5 +126,6 @@ async def itop_auto_login(
         action=html.escape(action, quote=True),
         username=html.escape(username, quote=True),
         password=html.escape(password, quote=True),
+        redirect=f"/integrations/itop{html.escape(redirect, quote=True)}",
         extra_fields='<input type="hidden" name="login_mode" value="form">',
     )
