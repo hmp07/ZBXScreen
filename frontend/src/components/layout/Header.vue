@@ -23,29 +23,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { getIntegrationSettings } from "@/api/integrations";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const zabbixUrl = ref("");
-const itopUrl = ref("");
-
-onMounted(async () => {
-  try {
-    const r = await getIntegrationSettings();
-    const d = r.data.data;
-    if (d.ZABBIX_FRONTEND_URL) zabbixUrl.value = d.ZABBIX_FRONTEND_URL;
-    if (d.ITOP_URL) itopUrl.value = d.ITOP_URL;
-  } catch { /* silent */ }
-});
 
 function handleToolCommand(cmd: string) {
-  const url = cmd === "zabbix" ? zabbixUrl.value : cmd === "itop" ? itopUrl.value : "";
-  if (url && /^https?:\/\//i.test(url)) {
-    window.open(url, "_blank");
+  if (cmd === "zabbix") {
+    window.open("/integrations/zabbix/login", "_blank");
+  } else if (cmd === "itop") {
+    window.open("/integrations/itop/login", "_blank");
   }
 }
 

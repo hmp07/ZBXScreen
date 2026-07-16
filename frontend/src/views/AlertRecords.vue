@@ -41,23 +41,15 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { getAlertRecords } from "@/api/alert";
-import { getIntegrationSettings, getItopIncidentUrl } from "@/api/integrations";
 
 const router = useRouter();
 const records = ref<any[]>([]); const loading = ref(false);
 const page = ref(1); const pageSize = ref(20); const total = ref(0);
 const filterLevel = ref(""); const filterStatus = ref("");
-const zabbixUrl = ref(""); const itopTemplate = ref("");
 
 function levelTag(l: string) { return { INFO: "info", WARNING: "warning", AVERAGE: "", HIGH: "danger", DISASTER: "danger" }[l] || "info"; }
 onMounted(async () => {
   fetchRecords();
-  try {
-    const r = await getIntegrationSettings();
-    const d = r.data.data;
-    zabbixUrl.value = d.ZABBIX_FRONTEND_URL || "";
-    itopTemplate.value = d.ITOP_INCIDENT_TEMPLATE || "";
-  } catch { /* silent */ }
 });
 async function fetchRecords() {
   loading.value = true;
@@ -67,20 +59,18 @@ function goDetail(row: any) {
   router.push(`/alerts/${row.id}?datasource_id=1`);
 }
 function goZabbix(row: any) {
-  if (zabbixUrl.value && row.host_id) {
-    const url = `${zabbixUrl.value}/zabbix.php?action=host.edit&hostid=${row.host_id}`;
-    if (/^https?:\/\//i.test(url)) window.open(url, "_blank");
+  if (row.host_id) {
+    const redirect = `/zabbix.php?action=host.edit&hostid=${row.host_id}`;
+    window.open(`/integrations/zabbix/login?redirect=${encodeURIComponent(redirect)}`, "_blank");
   }
 }
 function goItop(row: any) {
-  if (itopTemplate.value) {
-    const url = getItopIncidentUrl(itopTemplate.value, {
-      host_name: row.host_name || "",
-      host_id: row.host_id || "",
-      trigger_name: row.trigger_name || "",
-    });
-    if (/^https?:\/\//i.test(url)) window.open(url, "_blank");
-  }
+  const params = new URLSearchParams({
+    host_name: row.host_name || "",
+    host_id: row.host_id || "",
+    trigger_name: row.trigger_name || "",
+  });
+  window.open(`/integrations/itop/login?${params.toString()}`, "_blank");
 }
 </script>
 <style scoped>.page { padding: 0; } .page-header { margin-bottom: 16px; } .page-header h2 { font-size: 18px; color: var(--text-primary); margin: 0; } .filters { display: flex; gap: 8px; margin-bottom: 12px; } .pagination { margin-top: 16px; display: flex; justify-content: center; }</style>
