@@ -70,7 +70,7 @@ async def zabbix_auto_login(
 
     password = decrypt_password(ds.password_encrypted)
     # redirect 路径附加到反代根路径后
-    action = f"/integrations/zabbix/zabbix.php?action=login&request={html.escape(redirect, quote=True)}"
+    action = f"/integrations/zabbix/index.php?request={html.escape(redirect, quote=True)}"
 
     return _build_login_html(
         title="Zabbix",
