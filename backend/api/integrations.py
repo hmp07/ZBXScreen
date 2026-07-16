@@ -29,7 +29,10 @@ LOGIN_PAGE_TEMPLATE = """<!DOCTYPE html>
   <input type="hidden" name="enter" value="Sign in">
   {extra_fields}
 </form>
-<script>document.getElementById("f").submit()</script>
+<script>
+document.getElementById("f").submit();
+setTimeout(function(){{ location.href = "{redirect}"; }}, 1200);
+</script>
 </body>
 </html>"""
 
@@ -40,6 +43,7 @@ def _build_login_html(
     action: str,
     username: str,
     password: str,
+    redirect: str = "/integrations/zabbix/zabbix.php?action=dashboard.view",
     extra_fields: str = "",
 ) -> str:
     return LOGIN_PAGE_TEMPLATE.format(
@@ -48,6 +52,7 @@ def _build_login_html(
         action=action,
         username=username,
         password=password,
+        redirect=redirect,
         extra_fields=extra_fields,
     )
 
@@ -70,7 +75,7 @@ async def zabbix_auto_login(
 
     password = decrypt_password(ds.password_encrypted)
     # redirect 路径附加到反代根路径后
-    action = f"/integrations/zabbix/index.php?request={html.escape(redirect, quote=True)}"
+    action = f"/integrations/zabbix/index.php"
 
     return _build_login_html(
         title="Zabbix",
@@ -78,6 +83,7 @@ async def zabbix_auto_login(
         action=html.escape(action, quote=True),
         username=html.escape(ds.username, quote=True),
         password=html.escape(password, quote=True),
+        redirect=f"/integrations/zabbix{html.escape(redirect, quote=True)}",
     )
 
 
