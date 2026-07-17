@@ -78,9 +78,6 @@
 
       <el-tab-pane label="运维集成" name="integration">
         <el-form :model="intForm" label-width="160px" style="max-width:560px">
-          <el-form-item label="运维监控系统 地址">
-            <el-input v-model="intForm.zabbix_frontend_url" placeholder="如：http://zabbix.example.com" />
-          </el-form-item>
           <el-form-item label="运维管理系统 地址">
             <el-input v-model="intForm.itop_url" placeholder="如：http://itop.example.com" />
           </el-form-item>
@@ -127,7 +124,6 @@ const form = reactive({ name: "", url: "", username: "", password: "" });
 
 // 运维集成表单
 const intForm = reactive({
-  zabbix_frontend_url: "",
   itop_url: "",
   itop_username: "",
   itop_password: "",
@@ -146,7 +142,6 @@ async function fetchIntegrationSettings() {
   try {
     const r = await getSettings();
     const d = r.data.data;
-    if (d.ZABBIX_FRONTEND_URL) intForm.zabbix_frontend_url = d.ZABBIX_FRONTEND_URL;
     if (d.ITOP_URL) intForm.itop_url = d.ITOP_URL;
     if (d.ITOP_USERNAME) intForm.itop_username = d.ITOP_USERNAME;
     if (d.ITOP_PASSWORD) intForm.itop_password = d.ITOP_PASSWORD;

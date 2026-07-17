@@ -61,7 +61,6 @@ async def init_db():
             "SYSTEM_LOGO": "",
             "THEME": "dark",
             "TZ": app_settings.tz,
-            "ZABBIX_FRONTEND_URL": "",
             "ITOP_URL": "",
             "ITOP_INCIDENT_TEMPLATE": "",
         }

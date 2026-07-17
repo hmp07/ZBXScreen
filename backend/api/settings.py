@@ -25,7 +25,6 @@ class SettingsUpdate(BaseModel):
     theme: str | None = None
     tz: str | None = None
     # 运维集成
-    zabbix_frontend_url: str | None = None
     itop_url: str | None = None
     itop_username: str | None = None
     itop_password: str | None = None
@@ -81,7 +80,6 @@ async def update_settings(
         "DATA_RETENTION_DAYS": str(req.data_retention_days) if req.data_retention_days else None,
         "THEME": req.theme,
         "TZ": req.tz,
-        "ZABBIX_FRONTEND_URL": req.zabbix_frontend_url,
         "ITOP_URL": req.itop_url,
         "ITOP_USERNAME": req.itop_username,
         "ITOP_PASSWORD": req.itop_password,
