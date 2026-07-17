@@ -74,6 +74,11 @@ conn.close()
     fi
 fi
 
+# 验证 Nginx 配置
+echo "[entrypoint] Nginx config test:"
+nginx -t
+echo ""
+
 echo "[entrypoint] Starting services via supervisord..."
 echo "  - Nginx     :80  (static + reverse proxy)"
 echo "  - uvicorn   :5001 (FastAPI, internal)"
