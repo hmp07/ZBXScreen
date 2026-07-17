@@ -26,6 +26,58 @@ touch /app/logs/.write_test 2>/dev/null && rm -f /app/logs/.write_test || {
     echo "[entrypoint] Run on host: chmod 777 \$(pwd)/logs"
 }
 
+# ── 配置运维集成反代 ──
+INTEGRATIONS_CONF="/etc/nginx/conf.d/integrations.conf"
+if [ -f "$INTEGRATIONS_CONF" ]; then
+    echo "[entrypoint] Configuring integration proxy..."
+
+    # 从数据源读取 Zabbix 凭据并生成 Basic Auth
+    ZABBIX_CREDS=$(python3 -c "
+import sqlite3, base64, hashlib, sys
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+
+db_path = '/app/data/zabbixscreen.db'
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+cur.execute('SELECT url, username, password_encrypted FROM datasources WHERE enabled=1 LIMIT 1')
+row = cur.fetchone()
+if not row:
+    sys.exit(0)
+
+zabbix_url, username, encrypted = row[0], row[1], row[2]
+
+# 读取 APP_SECRET_KEY
+import os
+key_str = os.environ.get('APP_SECRET_KEY', 'change-this-in-production')
+aes_key = hashlib.sha256(key_str.encode()).digest()[:16]
+raw = base64.b64decode(encrypted)
+iv, ct = raw[:16], raw[16:]
+cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+password = unpad(cipher.decrypt(ct), AES.block_size).decode()
+
+basic = base64.b64encode(f'{username}:{password}'.encode()).decode()
+print(f'ZABBIX_URL={zabbix_url}')
+print(f'ZABBIX_BASIC={basic}')
+conn.close()
+" 2>/dev/null)
+
+    if [ -n "$ZABBIX_CREDS" ]; then
+        eval "$ZABBIX_CREDS"
+        sed -i "s|ZABBIX_REAL_HOST|$ZABBIX_URL|g" "$INTEGRATIONS_CONF"
+        sed -i "s|ZABBIX_CREDENTIALS|$ZABBIX_BASIC|g" "$INTEGRATIONS_CONF"
+        echo "[entrypoint] Zabbix proxy configured: $ZABBIX_URL"
+    else
+        echo "[entrypoint] No Zabbix datasource found — integration proxy disabled"
+        sed -i 's|ZABBIX_REAL_HOST|127.0.0.1|g' "$INTEGRATIONS_CONF"
+        sed -i 's|ZABBIX_CREDENTIALS|DISABLED|g' "$INTEGRATIONS_CONF"
+    fi
+
+    # iTop 占位（后续配置后重启生效）
+    sed -i 's|ITOP_REAL_HOST|127.0.0.1|g' "$INTEGRATIONS_CONF"
+    sed -i 's|ITOP_CREDENTIALS|DISABLED|g' "$INTEGRATIONS_CONF"
+fi
+
 echo "[entrypoint] Starting services via supervisord..."
 echo "  - Nginx     :80  (static + reverse proxy)"
 echo "  - uvicorn   :5001 (FastAPI, internal)"
