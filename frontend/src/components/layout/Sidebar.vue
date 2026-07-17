@@ -49,6 +49,14 @@
         <el-icon><Connection /></el-icon>
         <template #title>Webhook</template>
       </el-menu-item>
+      <el-sub-menu index="tools">
+        <template #title>
+          <el-icon><Switch /></el-icon>
+          <span>运维功能</span>
+        </template>
+        <el-menu-item index="/integrations/zabbix/login" @click.prevent="openIntegration('zabbix')">运维监控系统</el-menu-item>
+        <el-menu-item index="/integrations/itop/login" @click.prevent="openIntegration('itop')">运维管理系统</el-menu-item>
+      </el-sub-menu>
       <el-menu-item index="/settings">
         <el-icon><Setting /></el-icon>
         <template #title>系统设置</template>
@@ -114,6 +122,11 @@ const activeMenu = computed(() => {
   if (path.match(/^\/hosts\/\d+$/)) return "/hosts";
   return path;
 });
+
+function openIntegration(type: string) {
+  if (type === "zabbix") window.open("/integrations/zabbix/login", "_blank");
+  else if (type === "itop") window.open("/integrations/itop/login", "_blank");
+}
 
 function handleLogout() {
   authStore.logout();

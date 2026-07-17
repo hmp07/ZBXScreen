@@ -34,19 +34,19 @@
       </el-form-item>
 
       <el-divider content-position="left">运维集成</el-divider>
-      <el-form-item label="Zabbix 前端地址">
+      <el-form-item label="运维监控系统 地址">
         <el-input v-model="form.zabbix_frontend_url" placeholder="如：http://zabbix.example.com" />
       </el-form-item>
-      <el-form-item label="iTop 地址">
+      <el-form-item label="运维管理系统 地址">
         <el-input v-model="form.itop_url" placeholder="如：http://itop.example.com" />
       </el-form-item>
-      <el-form-item label="iTop 用户名">
+      <el-form-item label="运维管理系统 用户名">
         <el-input v-model="form.itop_username" placeholder="iTop 登录用户名" />
       </el-form-item>
-      <el-form-item label="iTop 密码">
+      <el-form-item label="运维管理系统 密码">
         <el-input v-model="form.itop_password" type="password" placeholder="iTop 登录密码" show-password />
       </el-form-item>
-      <el-form-item label="iTop 工单模板">
+      <el-form-item label="工单模板">
         <el-input v-model="form.itop_incident_template" type="textarea" :rows="2"
           placeholder="{itop_url}/pages/exec.php/exec?exec_module=itop-incident-create&default_values[attr_title]={trigger_name}" />
         <div style="font-size:11px;color:var(--text-3);margin-top:4px">
