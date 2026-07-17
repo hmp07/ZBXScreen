@@ -27,7 +27,7 @@
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click.stop="goZabbix(row)">Zabbix查看</el-button>
-          <el-button link type="primary" size="small" @click.stop="goItop(row)">iTop工单</el-button>
+          <el-button link type="primary" size="small" @click.stop="goItop(row)">创建运维工单</el-button>
         </template>
       </el-table-column>
     </el-table>

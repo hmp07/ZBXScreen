@@ -71,8 +71,8 @@ async def zabbix_auto_login(
     action = f"/integrations/zabbix/index.php"
 
     return _build_login_html(
-        title="Zabbix",
-        subtitle="正在自动登录 Zabbix 监控系统...",
+        title="运维监控系统",
+        subtitle="正在自动登录运维监控系统...",
         action=html.escape(action, quote=True),
         fields=f'''<input type="hidden" name="name" value="{html.escape(ds.username, quote=True)}">
   <input type="hidden" name="password" value="{html.escape(password, quote=True)}">
@@ -104,8 +104,8 @@ async def itop_auto_login(
 <head><meta charset="UTF-8"><title>iTop 未配置</title></head>
 <body style="background:#0d1b2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
 <div style="text-align:center;color:#e6f7ff;font-family:sans-serif">
-  <div style="font-size:24px;margin-bottom:16px">iTop 未配置</div>
-  <div style="font-size:14px;color:#6b89a3">请在 系统设置→运维集成 中配置 iTop 地址</div>
+  <div style="font-size:24px;margin-bottom:16px">运维管理系统 未配置</div>
+  <div style="font-size:14px;color:#6b89a3">请在 系统设置→数据源→运维集成 中配置运维管理系统地址和凭据</div>
 </div>
 </body>
 </html>""")
@@ -127,8 +127,8 @@ async def itop_auto_login(
     action = f"{itop_url.rstrip('/')}/pages/UI.php"
 
     return _build_login_html(
-        title="iTop",
-        subtitle="正在自动登录 iTop ITSM 系统...",
+        title="运维管理系统",
+        subtitle="正在自动登录运维管理系统...",
         action=html.escape(action, quote=True),
         fields=f'''<input type="hidden" name="auth_user" value="{html.escape(username, quote=True)}">
   <input type="hidden" name="auth_pwd" value="{html.escape(password, quote=True)}">
