@@ -85,7 +85,7 @@
             <el-input v-model="intForm.itop_username" placeholder="iTop 登录用户名" />
           </el-form-item>
           <el-form-item label="运维管理系统 密码">
-            <el-input v-model="intForm.itop_password" type="password" placeholder="iTop 登录密码" show-password />
+            <el-input v-model="intForm.itop_password" type="password" placeholder="iTop 登录密码" />
           </el-form-item>
           <el-form-item label="工单模板">
             <el-input v-model="intForm.itop_incident_template" type="textarea" :rows="2"

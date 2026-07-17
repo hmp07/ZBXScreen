@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from database import get_db
 from models.settings import Settings
 from utils.auth import get_current_user
+from utils.crypto import encrypt_password, decrypt_password
 
 router = APIRouter(prefix="/api/v1/settings", tags=["系统设置"])
 
@@ -38,7 +39,15 @@ async def get_settings(
 ):
     result = await db.execute(select(Settings))
     all_settings = result.scalars().all()
-    data = {s.key: s.value for s in all_settings}
+    data = {}
+    for s in all_settings:
+        val = s.value
+        if s.key == "ITOP_PASSWORD" and val:
+            try:
+                val = decrypt_password(val)
+            except Exception:
+                pass  # 兼容旧版明文密码
+        data[s.key] = val
     return success(data)
 
 
@@ -88,6 +97,9 @@ async def update_settings(
 
     for key, value in mapping.items():
         if value is not None:
+            # 加密 iTop 密码
+            if key == "ITOP_PASSWORD" and value:
+                value = encrypt_password(value)
             result = await db.execute(select(Settings).where(Settings.key == key))
             setting = result.scalar_one_or_none()
             if setting:
