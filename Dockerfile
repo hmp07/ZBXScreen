@@ -58,7 +58,7 @@ COPY --from=frontend-build /app/frontend/dist /app/static
 # 复制 Nginx 配置
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
-COPY nginx/conf.d/integrations.conf /etc/nginx/conf.d/integrations.conf
+COPY nginx/conf.d/integrations.conf /app/nginx/integrations.conf.template
 
 # 复制 supervisor 配置
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
