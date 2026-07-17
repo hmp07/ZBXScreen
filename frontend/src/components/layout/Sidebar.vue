@@ -44,8 +44,8 @@
           <el-icon><Switch /></el-icon>
           <span>运维功能</span>
         </template>
-        <el-menu-item index="tools-zabbix" @click="openIntegration('zabbix')">运维监控系统</el-menu-item>
-        <el-menu-item index="tools-itop" @click="openIntegration('itop')">运维管理系统</el-menu-item>
+        <el-menu-item index="tools-zabbix" @click.prevent="openIntegration('zabbix')">运维监控系统</el-menu-item>
+        <el-menu-item index="tools-itop" @click.prevent="openIntegration('itop')">运维管理系统</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="settings-group">
