@@ -44,8 +44,8 @@
           <el-icon><Switch /></el-icon>
           <span>运维功能</span>
         </template>
-        <el-menu-item index="tools-zabbix" @click.prevent="openIntegration('zabbix')">运维监控系统</el-menu-item>
-        <el-menu-item index="tools-itop" @click.prevent="openIntegration('itop')">运维管理系统</el-menu-item>
+        <li class="el-menu-item custom-menu-item" @click="openIntegration('zabbix')">运维监控系统</li>
+        <li class="el-menu-item custom-menu-item" @click="openIntegration('itop')">运维管理系统</li>
       </el-sub-menu>
 
       <el-sub-menu index="settings-group">
@@ -183,6 +183,22 @@ function handleLogout() {
 }
 .el-sub-menu .el-menu-item {
   padding-left: 56px !important;
+}
+.custom-menu-item {
+  cursor: pointer;
+  padding-left: 56px !important;
+  color: #90a4ae;
+  font-size: 14px;
+  height: 56px;
+  line-height: 56px;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.custom-menu-item:hover {
+  color: #00d4ff;
+  background-color: rgba(0,212,255,0.06);
 }
 
 /* 用户信息 */
