@@ -20,35 +20,25 @@
       active-text-color="#00d4ff"
       :collapse-transition="false"
     >
-      <el-menu-item index="/dashboard">
-        <el-icon><DataAnalysis /></el-icon>
-        <template #title>数据中心大屏</template>
-      </el-menu-item>
-      <el-menu-item index="/network">
-        <el-icon><Connection /></el-icon>
-        <template #title>网络监控大屏</template>
-      </el-menu-item>
-      <el-menu-item index="/hosts">
-        <el-icon><Monitor /></el-icon>
-        <template #title>主机管理</template>
-      </el-menu-item>
-      <el-menu-item index="/datasources">
-        <el-icon><Coin /></el-icon>
-        <template #title>数据源</template>
-      </el-menu-item>
-      <el-sub-menu index="alerts">
+      <el-sub-menu index="monitors">
         <template #title>
-          <el-icon><Bell /></el-icon>
-          <span>告警管理</span>
+          <el-icon><DataAnalysis /></el-icon>
+          <span>监控大屏</span>
         </template>
+        <el-menu-item index="/dashboard">数据中心大屏</el-menu-item>
+        <el-menu-item index="/network">网络监控大屏</el-menu-item>
         <el-menu-item index="/alerts/dashboard">告警大屏</el-menu-item>
-        <el-menu-item index="/alerts/rules">告警规则</el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="hosts-group">
+        <template #title>
+          <el-icon><Monitor /></el-icon>
+          <span>主机管理</span>
+        </template>
+        <el-menu-item index="/hosts">主机列表</el-menu-item>
         <el-menu-item index="/alerts/records">告警记录</el-menu-item>
       </el-sub-menu>
-      <el-menu-item index="/webhooks">
-        <el-icon><Connection /></el-icon>
-        <template #title>Webhook</template>
-      </el-menu-item>
+
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Switch /></el-icon>
@@ -57,10 +47,17 @@
         <el-menu-item index="/integrations/zabbix/login" @click.prevent="openIntegration('zabbix')">运维监控系统</el-menu-item>
         <el-menu-item index="/integrations/itop/login" @click.prevent="openIntegration('itop')">运维管理系统</el-menu-item>
       </el-sub-menu>
-      <el-menu-item index="/settings">
-        <el-icon><Setting /></el-icon>
-        <template #title>系统设置</template>
-      </el-menu-item>
+
+      <el-sub-menu index="settings-group">
+        <template #title>
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
+        </template>
+        <el-menu-item index="/settings">通用设置</el-menu-item>
+        <el-menu-item index="/datasources">数据源</el-menu-item>
+        <el-menu-item index="/alerts/rules">告警规则</el-menu-item>
+        <el-menu-item index="/webhooks">Webhook</el-menu-item>
+      </el-sub-menu>
     </el-menu>
 
     <!-- 用户信息区 -->
