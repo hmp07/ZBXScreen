@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from models.datasource import Datasource
+from utils.crypto import decrypt_password
 
 
 from utils.crypto import decrypt_password
@@ -122,6 +123,12 @@ async def itop_auto_login(
     )
     password_row = result.scalar_one_or_none()
     password = password_row.value if password_row else "admin"
+    # 密码在数据库中已加密，需要解密
+    if password and password != "admin":
+        try:
+            password = decrypt_password(password)
+        except Exception:
+            pass  # 兼容旧版明文密码
 
     # 直接 POST 到 iTop 服务器（不经过代理，避免需要更新 nginx 配置）
     action = f"{itop_url.rstrip('/')}/pages/UI.php"
