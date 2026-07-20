@@ -28,7 +28,7 @@ LOGIN_PAGE_TEMPLATE = """<!DOCTYPE html>
 </form>
 <script>
 document.getElementById("f").submit();
-setTimeout(function(){{ location.href = "{redirect}"; }}, 1200);
+{redirect_js}
 </script>
 </body>
 </html>"""
@@ -39,14 +39,14 @@ def _build_login_html(
     subtitle: str,
     action: str,
     fields: str,
-    redirect: str = "/integrations/zabbix/zabbix.php?action=dashboard.view",
+    redirect_js: str = "",
 ) -> str:
     return LOGIN_PAGE_TEMPLATE.format(
         title=title,
         subtitle=subtitle,
         action=action,
         fields=fields,
-        redirect=redirect,
+        redirect_js=redirect_js,
     )
 
 
@@ -77,7 +77,7 @@ async def zabbix_auto_login(
         fields=f'''<input type="hidden" name="name" value="{html.escape(ds.username, quote=True)}">
   <input type="hidden" name="password" value="{html.escape(password, quote=True)}">
   <input type="hidden" name="enter" value="Sign in">''',
-        redirect=f"/integrations/zabbix{html.escape(redirect, quote=True)}",
+        redirect_js=f'setTimeout(function(){{ location.href = "/integrations/zabbix{html.escape(redirect, quote=True)}"; }}, 1500);',
     )
 
 
@@ -134,5 +134,5 @@ async def itop_auto_login(
   <input type="hidden" name="auth_pwd" value="{html.escape(password, quote=True)}">
   <input type="hidden" name="login_mode" value="form">
   <input type="hidden" name="loginop" value="login">''',
-        redirect=html.escape(f"{itop_url.rstrip('/')}{redirect}", quote=True),
+        redirect_js="",
     )
