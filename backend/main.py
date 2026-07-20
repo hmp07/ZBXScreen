@@ -8,7 +8,7 @@ from config import settings
 
 app = FastAPI(
     title="ZabbixScreen",
-    version="1.2.0",
+    version="1.3.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url=None,
 )
@@ -29,7 +29,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "version": "1.2.0",
+        "version": "1.3.0",
         "services": {
             "database": "ok",
         },

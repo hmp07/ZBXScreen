@@ -32,7 +32,7 @@ def build_alert_payload(alert: AlertRecord) -> dict:
         "event_time": datetime.now(timezone.utc).isoformat() + "Z",
         "source": {
             "system": "ZBXScreen",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "instance_url": "",
         },
         "host": {
@@ -67,7 +67,7 @@ def build_recovery_payload(alert: AlertRecord) -> dict:
         "event_time": datetime.now(timezone.utc).isoformat() + "Z",
         "source": {
             "system": "ZBXScreen",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "instance_url": "",
         },
         "host": {
@@ -235,7 +235,7 @@ async def send_batched_webhook(alerts: list[AlertRecord]):
         "event_id": str(uuid.uuid4()),
         "event_type": "batch_alert",
         "event_time": datetime.now(timezone.utc).isoformat() + "Z",
-        "source": {"system": "ZBXScreen", "version": "1.2.0", "instance_url": ""},
+        "source": {"system": "ZBXScreen", "version": "1.3.0", "instance_url": ""},
         "batch": {
             "count": len(alerts),
             "aggregation_window_seconds": ALERT_AGGREGATION_WINDOW,

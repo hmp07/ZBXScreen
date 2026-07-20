@@ -123,7 +123,7 @@ async def test_webhook(
         "event_id": str(uuid.uuid4()),
         "event_type": "test",
         "event_time": "2026-06-01T10:00:00Z",
-        "source": {"system": "ZBXScreen", "version": "1.2.0"},
+        "source": {"system": "ZBXScreen", "version": "1.3.0"},
         "message": "This is a test webhook from ZabbixScreen",
     }
     headers = {"Content-Type": "application/json"}
