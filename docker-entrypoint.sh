@@ -66,11 +66,11 @@ conn.close()
 
     if [ -n "$ZABBIX_CREDS" ]; then
         eval "$ZABBIX_CREDS"
-        sed "s|ZABBIX_REAL_HOST|$ZABBIX_URL|g; s|ZABBIX_CREDENTIALS|$ZABBIX_BASIC|g; s|ITOP_REAL_HOST|127.0.0.1|g; s|ITOP_CREDENTIALS|DISABLED|g" "$TEMPLATE" > "$OUTPUT"
+        sed "s|ZABBIX_REAL_HOST|$ZABBIX_URL|g; s|ZABBIX_CREDENTIALS|$ZABBIX_BASIC|g; s|ITOP_REAL_HOST|http://127.0.0.1:5001|g; s|ITOP_CREDENTIALS|DISABLED|g" "$TEMPLATE" > "$OUTPUT"
         echo "[entrypoint] Zabbix proxy configured: $ZABBIX_URL"
     else
         echo "[entrypoint] No Zabbix datasource found — integration proxy disabled"
-        sed 's|ZABBIX_REAL_HOST|http://127.0.0.1|g; s|ZABBIX_CREDENTIALS|DISABLED|g; s|ITOP_REAL_HOST|http://127.0.0.1|g; s|ITOP_CREDENTIALS|DISABLED|g' "$TEMPLATE" > "$OUTPUT"
+        sed 's|ZABBIX_REAL_HOST|http://127.0.0.1:5001|g; s|ZABBIX_CREDENTIALS|DISABLED|g; s|ITOP_REAL_HOST|http://127.0.0.1:5001|g; s|ITOP_CREDENTIALS|DISABLED|g' "$TEMPLATE" > "$OUTPUT"
     fi
 fi
 
