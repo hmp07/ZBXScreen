@@ -24,9 +24,10 @@
       <el-table-column label="时间" min-width="160">
         <template #default="{ row }">{{ row.first_occurred ? new Date(row.first_occurred).toLocaleString() : '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="80" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small">大屏查看</el-button>
+          <el-button link type="primary" size="small" @click.stop="goZabbix(row)">Zabbix查看</el-button>
+          <el-button link type="primary" size="small" @click.stop="goItop(row)">创建运维工单</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -40,18 +41,36 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { getAlertRecords } from "@/api/alert";
+
 const router = useRouter();
 const records = ref<any[]>([]); const loading = ref(false);
 const page = ref(1); const pageSize = ref(20); const total = ref(0);
 const filterLevel = ref(""); const filterStatus = ref("");
+
 function levelTag(l: string) { return { INFO: "info", WARNING: "warning", AVERAGE: "", HIGH: "danger", DISASTER: "danger" }[l] || "info"; }
-onMounted(fetchRecords);
+onMounted(async () => {
+  fetchRecords();
+});
 async function fetchRecords() {
   loading.value = true;
   try { const r = await getAlertRecords({ page: page.value, page_size: pageSize.value, level: filterLevel.value || undefined, status: filterStatus.value || undefined }); const d = r.data.data; records.value = d.items; total.value = d.total; } finally { loading.value = false; }
 }
 function goDetail(row: any) {
   router.push(`/alerts/${row.id}?datasource_id=1`);
+}
+function goZabbix(row: any) {
+  if (row.host_id) {
+    const redirect = `/zabbix.php?action=host.edit&hostid=${row.host_id}`;
+    window.open(`/integrations/zabbix/login?redirect=${encodeURIComponent(redirect)}`, "_blank");
+  }
+}
+function goItop(row: any) {
+  const params = new URLSearchParams({
+    host_name: row.host_name || "",
+    host_id: row.host_id || "",
+    trigger_name: row.trigger_name || "",
+  });
+  window.open(`/integrations/itop/login?${params.toString()}`, "_blank");
 }
 </script>
 <style scoped>.page { padding: 0; } .page-header { margin-bottom: 16px; } .page-header h2 { font-size: 18px; color: var(--text-primary); margin: 0; } .filters { display: flex; gap: 8px; margin-bottom: 12px; } .pagination { margin-top: 16px; display: flex; justify-content: center; }</style>

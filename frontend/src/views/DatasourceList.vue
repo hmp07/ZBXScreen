@@ -1,13 +1,17 @@
 <template>
   <div class="datasource-page">
     <div class="page-header">
-      <h2>数据源管理</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>添加数据源
-      </el-button>
+      <h2>数据源与集成</h2>
     </div>
 
-    <el-table :data="store.list" v-loading="store.loading" style="width: 100%">
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="Zabbix 数据源" name="datasource">
+        <div class="tab-toolbar">
+          <el-button type="primary" size="small" @click="openCreateDialog">
+            <el-icon><Plus /></el-icon>添加数据源
+          </el-button>
+        </div>
+        <el-table :data="store.list" v-loading="store.loading" style="width: 100%">
       <el-table-column prop="name" label="名称" min-width="120" />
       <el-table-column prop="url" label="Zabbix URL" min-width="200" show-overflow-tooltip />
       <el-table-column prop="username" label="用户名" width="100" />
@@ -70,6 +74,32 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+      </el-tab-pane>
+
+      <el-tab-pane label="运维集成" name="integration">
+        <el-form :model="intForm" label-width="160px" style="max-width:560px">
+          <el-form-item label="运维管理系统 地址">
+            <el-input v-model="intForm.itop_url" placeholder="如：http://itop.example.com" />
+          </el-form-item>
+          <el-form-item label="运维管理系统 用户名">
+            <el-input v-model="intForm.itop_username" placeholder="iTop 登录用户名" />
+          </el-form-item>
+          <el-form-item label="运维管理系统 密码">
+            <el-input v-model="intForm.itop_password" type="password" placeholder="iTop 登录密码" />
+          </el-form-item>
+          <el-form-item label="工单模板">
+            <el-input v-model="intForm.itop_incident_template" type="textarea" :rows="2"
+              placeholder="{itop_url}/pages/exec.php/exec?exec_module=itop-incident-create&default_values[attr_title]={trigger_name}" />
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+              可用变量：<code>{itop_url}</code> <code>{host_name}</code> <code>{host_id}</code> <code>{trigger_name}</code>
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="saveIntegration">保存集成配置</el-button>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
@@ -79,6 +109,7 @@ import { ElMessage } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { useDatasourceStore } from "@/stores/datasource";
+import { getSettings, updateSettings } from "@/api/settings";
 import type { Datasource } from "@/api/datasource";
 
 const store = useDatasourceStore();
@@ -87,8 +118,17 @@ const dialogVisible = ref(false);
 const isEdit = ref(false);
 const editId = ref<number | null>(null);
 const submitting = ref(false);
+const activeTab = ref("datasource");
 
 const form = reactive({ name: "", url: "", username: "", password: "" });
+
+// 运维集成表单
+const intForm = reactive({
+  itop_url: "",
+  itop_username: "",
+  itop_password: "",
+  itop_incident_template: "",
+});
 const rules: FormRules = {
   name: [{ required: true, message: "请输入名称", trigger: "blur" }],
   url: [{ required: true, message: "请输入 Zabbix URL", trigger: "blur" }],
@@ -96,7 +136,27 @@ const rules: FormRules = {
   password: [{ required: true, message: "请输入密码", trigger: "blur" }],
 };
 
-onMounted(() => store.fetchList());
+onMounted(() => { store.fetchList(); fetchIntegrationSettings(); });
+
+async function fetchIntegrationSettings() {
+  try {
+    const r = await getSettings();
+    const d = r.data.data;
+    if (d.ITOP_URL) intForm.itop_url = d.ITOP_URL;
+    if (d.ITOP_USERNAME) intForm.itop_username = d.ITOP_USERNAME;
+    if (d.ITOP_PASSWORD) intForm.itop_password = d.ITOP_PASSWORD;
+    if (d.ITOP_INCIDENT_TEMPLATE) intForm.itop_incident_template = d.ITOP_INCIDENT_TEMPLATE;
+  } catch { /* silent */ }
+}
+
+async function saveIntegration() {
+  try {
+    await updateSettings(intForm as any);
+    ElMessage.success("运维集成配置已保存");
+  } catch {
+    ElMessage.error("保存失败");
+  }
+}
 
 function openCreateDialog() {
   isEdit.value = false;
@@ -146,5 +206,6 @@ async function testConnection(row: Datasource) {
 .datasource-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { font-size: 18px; color: var(--text-primary); margin: 0; }
+.tab-toolbar { margin-bottom: 12px; }
 .text-muted { color: var(--text-secondary); font-size: 12px; }
 </style>

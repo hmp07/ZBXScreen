@@ -83,8 +83,10 @@ from api.alert import router as alert_router
 from api.webhook import router as webhook_router
 from api.settings import router as settings_router
 from api.network import router as network_router
+from api.integrations import router as integrations_router
 
 app.include_router(network_router)
+app.include_router(integrations_router)
 app.include_router(auth_router)
 app.include_router(datasource_router)
 app.include_router(monitor_router)

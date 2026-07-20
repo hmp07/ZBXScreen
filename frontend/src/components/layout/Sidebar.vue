@@ -20,39 +20,44 @@
       active-text-color="#00d4ff"
       :collapse-transition="false"
     >
-      <el-menu-item index="/dashboard">
-        <el-icon><DataAnalysis /></el-icon>
-        <template #title>数据中心大屏</template>
-      </el-menu-item>
-      <el-menu-item index="/network">
-        <el-icon><Connection /></el-icon>
-        <template #title>网络监控大屏</template>
-      </el-menu-item>
-      <el-menu-item index="/hosts">
-        <el-icon><Monitor /></el-icon>
-        <template #title>主机管理</template>
-      </el-menu-item>
-      <el-menu-item index="/datasources">
-        <el-icon><Coin /></el-icon>
-        <template #title>数据源</template>
-      </el-menu-item>
-      <el-sub-menu index="alerts">
+      <el-sub-menu index="monitors">
         <template #title>
-          <el-icon><Bell /></el-icon>
-          <span>告警管理</span>
+          <el-icon><DataAnalysis /></el-icon>
+          <span>监控大屏</span>
         </template>
+        <el-menu-item index="/dashboard">数据中心大屏</el-menu-item>
+        <el-menu-item index="/network">网络监控大屏</el-menu-item>
         <el-menu-item index="/alerts/dashboard">告警大屏</el-menu-item>
-        <el-menu-item index="/alerts/rules">告警规则</el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="hosts-group">
+        <template #title>
+          <el-icon><Monitor /></el-icon>
+          <span>主机管理</span>
+        </template>
+        <el-menu-item index="/hosts">主机列表</el-menu-item>
         <el-menu-item index="/alerts/records">告警记录</el-menu-item>
       </el-sub-menu>
-      <el-menu-item index="/webhooks">
-        <el-icon><Connection /></el-icon>
-        <template #title>Webhook</template>
-      </el-menu-item>
-      <el-menu-item index="/settings">
-        <el-icon><Setting /></el-icon>
-        <template #title>系统设置</template>
-      </el-menu-item>
+
+      <el-sub-menu index="tools">
+        <template #title>
+          <el-icon><Switch /></el-icon>
+          <span>运维功能</span>
+        </template>
+        <li class="el-menu-item custom-menu-item" @click="openIntegration('zabbix')">运维监控系统</li>
+        <li class="el-menu-item custom-menu-item" @click="openIntegration('itop')">运维管理系统</li>
+      </el-sub-menu>
+
+      <el-sub-menu index="settings-group">
+        <template #title>
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
+        </template>
+        <el-menu-item index="/settings">通用设置</el-menu-item>
+        <el-menu-item index="/datasources">数据源</el-menu-item>
+        <el-menu-item index="/alerts/rules">告警规则</el-menu-item>
+        <el-menu-item index="/webhooks">Webhook</el-menu-item>
+      </el-sub-menu>
     </el-menu>
 
     <!-- 用户信息区 -->
@@ -115,6 +120,11 @@ const activeMenu = computed(() => {
   return path;
 });
 
+function openIntegration(type: string) {
+  if (type === "zabbix") window.open("/integrations/zabbix/login", "_blank");
+  else if (type === "itop") window.open("/integrations/itop/login", "_blank");
+}
+
 function handleLogout() {
   authStore.logout();
   router.push("/login");
@@ -170,6 +180,25 @@ function handleLogout() {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+}
+.el-sub-menu .el-menu-item {
+  padding-left: 56px !important;
+}
+.custom-menu-item {
+  cursor: pointer;
+  padding-left: 56px !important;
+  color: #90a4ae;
+  font-size: 14px;
+  height: 56px;
+  line-height: 56px;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.custom-menu-item:hover {
+  color: #00d4ff;
+  background-color: rgba(0,212,255,0.06);
 }
 
 /* 用户信息 */

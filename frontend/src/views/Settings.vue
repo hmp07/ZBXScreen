@@ -32,6 +32,7 @@
       <el-form-item label="时区">
         <el-select v-model="form.tz"><el-option value="Asia/Shanghai" label="Asia/Shanghai" /><el-option value="UTC" label="UTC" /></el-select>
       </el-form-item>
+
       <el-form-item>
         <el-button type="primary" @click="saveSettings">保存设置</el-button>
       </el-form-item>
